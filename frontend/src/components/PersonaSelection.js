@@ -1,147 +1,102 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
-import { useNavigate,useLocation  } from 'react-router-dom';
-import logo from '../images/Artboard 1.svg';
+import { useNavigate, useLocation } from 'react-router-dom';
+import axios from 'axios';
+import { FaUniversity, FaGlobe, FaFlask, FaTools, FaHeart, FaPalette } from 'react-icons/fa';
 
-const PersonaSelection = ( ) => {
-  
 
+const PersonaSelection = () => {
   const navigate = useNavigate();
   const [selectedPersonas, setSelectedPersonas] = useState([]);
   const [errorMessage, setErrorMessage] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
-
-  const personas = ['Heritage Lover', 'Explorer', 'Researcher', 'Practitioner', 'Conservator', 'Artist'];
-  
-  
   const location = useLocation();
   const userEmail = location.state?.email || localStorage.getItem('userEmail');
+  const Name = location.state?.name;
 
+  const personas = [
+    { name: 'Heritage Lover', icon: <FaUniversity /> },
+    { name: 'Explorer', icon: <FaGlobe /> },
+    { name: 'Researcher', icon: <FaFlask /> },
+    { name: 'Practitioner', icon: <FaTools /> },
+    { name: 'Conservator', icon: <FaHeart /> },
+    { name: 'Artist', icon: <FaPalette /> },
+  ];
 
-  console.log("🚀 Final User Email used:", userEmail);
-
-  // Allow users to select up to 3 personas
   const handlePersonaSelect = (persona) => {
+    
     if (selectedPersonas.includes(persona)) {
       setSelectedPersonas((prev) => prev.filter((p) => p !== persona));
     } else if (selectedPersonas.length < 3) {
       setSelectedPersonas((prev) => [...prev, persona]);
     }
-
-    console.log("Selected Personas:", [...selectedPersonas]);
   };
 
   const handleSubmit = async () => {
-    
-    console.log("📤 Attempting to send:", { userEmail, persona: selectedPersonas });
-  
+    console.log(Name,userEmail)
     if (!userEmail) {
-      setErrorMessage("User email is missing! Please log in again.");
+      setErrorMessage('User email is missing! Please log in again.');
       return;
     }
     if (selectedPersonas.length === 0) {
       setErrorMessage('Please select at least one persona.');
       return;
     }
-  
-    console.log("✅ Sending request with email:", userEmail);
-
-
     try {
-      const response = await fetch('http://localhost:5500/api/persona', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: userEmail, persona: selectedPersonas }),
-      });
+      await axios.post('http://localhost:5500/api/persona', { email: userEmail, persona: selectedPersonas, fullName: Name });
 
-      console.log("🛠 Raw response status:", response.status);
-    const text = await response.text();  // Read raw response
-    console.log("🛠 Raw response body:", text);
-
-    try {
-      const data = JSON.parse(text); // Convert to JSON
-      console.log("Response received:", data);
-
-      if (response.ok) {
-        setSuccessMessage(data.message);
-        navigate("/content-selection", { state: { email: userEmail } });
-      } else {
-        setErrorMessage(data.message);
-      }
+      navigate('/content-selection', { state: { email: userEmail } });
     } catch (error) {
-      console.error("❌ Failed to parse JSON:", text);
-      setErrorMessage("Something went wrong. Server response was not JSON.");
+      setErrorMessage('Something went wrong.');
     }
-  } catch (error) {
-    console.error("Error submitting persona:", error);
-    setErrorMessage("Something went wrong.");
-  }
-};
+  };
 
   return (
-    <PageWrapper>
+    <Container>
       <Header>
-        <Logo><img src={logo} alt="InstaLinked Logo" style={{ height: '25px' }} /></Logo>
+        <Logo>InstaLinked</Logo>
         <Progress>Steps 2/3</Progress>
-        
+        <SkipButton onClick={() => navigate('/content-selection')}>Skip ➝</SkipButton>
       </Header>
-
-      <MainContent>
-        <TitleWrapper>
+      <Main>
         <Title>Select Your Persona</Title>
-        <SkipButton onClick={() => navigate('/content-selection')}>Skip</SkipButton>
-        </TitleWrapper>
-
-        <Description>
-          Tell us who you are to tailor your experience on the Instalinked platform.
-        </Description>
-
+        <Description>Tell us who you are to tailor your experience on the platform.</Description>
         <PersonaGrid>
           {personas.map((persona) => (
             <PersonaCard
-              key={persona}
-              selected={selectedPersonas.includes(persona)}
-              onClick={() => handlePersonaSelect(persona)}
+              key={persona.name}
+              selected={selectedPersonas.includes(persona.name)}
+              onClick={() => handlePersonaSelect(persona.name)}
             >
-              <Icon>👤</Icon>
-              <PersonaName>{persona}</PersonaName>
-              <PersonaDescription>
-                {persona === 'Heritage Lover' &&
-                  'Someone passionate about preserving cultural heritage.'}
-                {persona === 'Explorer' &&
-                  'A wanderer curious about new places, stories, and cultures.'}
-                {persona === 'Researcher' &&
-                  'A professional involved in cultural research and studies.'}
-                {persona === 'Practitioner' &&
-                  'A specialist dedicated to cultural practices and traditions.'}
-                {persona === 'Conservator' &&
-                  'A professional focused on preserving historical and cultural items.'}
-                {persona === 'Artist' &&
-                  'A creative individual inspired by cultural heritage.'}
-              </PersonaDescription>
+              <Icon selected={selectedPersonas.includes(persona.name)}>{persona.icon}</Icon>
+              <PersonaName>{persona.name}</PersonaName>
+              <PersonaDesc selected={selectedPersonas.includes(persona.name)}>
+                {persona.name === 'Heritage Lover' && 'Discovering and preserving cultural heritage.'}
+                {persona.name === 'Explorer' && 'Curious about new places, stories, and artifacts.'}
+                {persona.name === 'Researcher' && 'Enjoys delving into historical or cultural studies.'}
+                {persona.name === 'Practitioner' && 'Involved in cultural practices or conservation efforts.'}
+                {persona.name === 'Conservator' && 'Dedicated to preserving historical and cultural items.'}
+                {persona.name === 'Artist' && 'Looking to share or explore art forms.'}
+              </PersonaDesc>
             </PersonaCard>
           ))}
         </PersonaGrid>
-
         {errorMessage && <ErrorMessage>{errorMessage}</ErrorMessage>}
-        {successMessage && <SuccessMessage>{successMessage}</SuccessMessage>}
-
-        <NextButton onClick={handleSubmit}>Next →</NextButton>
-      </MainContent>
-    </PageWrapper>
+        <NextButton onClick={handleSubmit}>Next ➝</NextButton>
+      </Main>
+    </Container>
   );
 };
 
 export default PersonaSelection;
 
-// Styled Components
-const PageWrapper = styled.div`
+const Container = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 100vh;
-  background: #f4f2ee;
+  height:100%;
+  gap:40px;
+  background: #f5f3ee;
 `;
 
 const Header = styled.div`
@@ -149,62 +104,35 @@ const Header = styled.div`
   justify-content: space-between;
   align-items: center;
   width: 100%;
-  max-width: 1200px;
-  padding: 10px 0;
-  
-`;
-
-const Logo = styled.div`
-  font-size: 20px;
+  height:8vh;
+  padding: 15px 30px;
+  background:#006D77;
+  color: white;
   font-weight: bold;
-  color: #006d77;
-  img {
-    height: 20px; 
-    width: auto;
 `;
 
-const Progress = styled.div`
-  font-size: 18px;
-  color: #555;
+const Logo = styled.div`font-size: 20px;`;
+const Progress = styled.div`font-size: 16px;`;
+const SkipButton = styled.button`
+  background: none;
+  border: none;
+  color: white;
+  font-size: 16px;
+  cursor: pointer;
 `;
 
-const MainContent = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  width: 100%;
-  max-width: 1200px;
-  padding: 20px;
-`;
-const TitleWrapper = styled.div`
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  width: 100%;
-  position: relative;
-  margin-bottom: 10px;
+const Main = styled.div`
+position:relative;
+height:100%;
+  text-align: center;
+  gap:40px;
+  padding: 40px;
 `;
 
 const Title = styled.h1`
   font-size: 24px;
   font-weight: bold;
   margin-bottom: 10px;
-  color: #006d77;
-  align-font: center;
-`;
-
-const SkipButton = styled.button`
-  position: absolute;
-  right: 0;
-  background: none;
-  border: none;
-  color: #006d77;
-  font-size: 16px;
-  cursor: pointer;
-
-  &:hover {
-    text-decoration: underline;
-  }
 `;
 
 const Description = styled.p`
@@ -215,67 +143,58 @@ const Description = styled.p`
 
 const PersonaGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(3, 1fr); 
-  gap: 20px; // Space between cards
-  width: 100%;
-  max-width: 1000px;
-  margin: 0 auto; 
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  max-width: 900px;
+  margin: auto;
 `;
 
 const PersonaCard = styled.div`
-  background: ${(props) => (props.selected ? '#006d77' : '#ffffff')};
-  border: 1px solid ${(props) => (props.selected ? '#006d77' : '#ddd')};
-  color: ${(props) => (props.selected ? '#ffffff' : '#333')};
-  border-radius: 8px;
+  background: ${(props) => (props.selected ?'#006D77' : 'white')};
+  border-radius: 10px;
   padding: 20px;
   text-align: center;
   cursor: pointer;
-  transition: box-shadow 0.3s ease;
-
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   &:hover {
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
   }
 `;
 
 const Icon = styled.div`
-  font-size: 25px;
+  font-size: 30px;
   margin-bottom: 10px;
+  color: ${(props) => (props.selected ? '#E5E5E5' : '#004d40')};
 `;
 
 const PersonaName = styled.h2`
   font-size: 18px;
   font-weight: bold;
-  margin-bottom: 10px;
 `;
 
-const PersonaDescription = styled.p`
+const PersonaDesc = styled.p`
   font-size: 14px;
-  color: ${(props) => (props.selected ? '#ffffff' : '#555')};
-  line-height: 1.5;
+  color: ${(props) => (props.selected ? '#E5E5E5' : '#555')};
+  margin-top: 5px;
 `;
-
 const ErrorMessage = styled.div`
   color: red;
   margin-top: 20px;
 `;
 
-const SuccessMessage = styled.div`
-  color: green;
-  margin-top: 20px;
-`;
-
 const NextButton = styled.button`
   margin-top: 30px;
-  padding: 12px 20px;
+  margin-bottom:40%;
+  padding: 12px 24px;
   font-size: 16px;
-  color: #fff;
-  background-color: #006d77;
+  background-color: #006D77;
+  color: white;
   border: none;
   border-radius: 5px;
   cursor: pointer;
-  transition: background-color 0.3s ease;
-
+  transition: background 0.3s ease;
   &:hover {
-    background-color: #004d55;
+    background-color: #00332e;
   }
 `;

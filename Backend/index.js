@@ -54,7 +54,7 @@ console.log("✅ Persona route loaded: /api/persona");
 app.use('/api', signupRoute);
 app.use('/api', verifyRoute);
 app.use('/api', resendOtpRoute);
-app.use('/api/persona', personaRoutes);
+app.use('/api', personaRoutes);
 app.use('/api', contentSelectRoutes);
 app.use('/api/auth', authRoutes);
 app.use("/api", feedRoutes);

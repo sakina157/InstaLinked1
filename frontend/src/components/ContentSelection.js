@@ -70,6 +70,7 @@ const ContentSelection = () => {
       <Header>
         <Logo>Instalinked</Logo>
         <Progress>Steps 3/3</Progress>
+        <SkipButton onClick={() => navigate('/Login')}>Skip ➝</SkipButton>
       </Header>
 
       <MainContent>
@@ -106,8 +107,9 @@ const PageWrapper = styled.div`
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 100vh;
-  background: #f8f9fa;
+  height:100%;
+  gap:40px;
+  background: #f5f3ee;
 `;
 
 const Header = styled.div`
@@ -115,24 +117,29 @@ const Header = styled.div`
   justify-content: space-between;
   align-items: center;
   width: 100%;
-  padding: 10px 20px;
-  background: #fff;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-`;
-
-const Logo = styled.div`
-  font-size: 20px;
+  height:8vh;
+  padding: 15px 30px;
+  background:#006D77;
+  color: white;
   font-weight: bold;
 `;
 
-const Progress = styled.div`
-  font-size: 14px;
-  color: #555;
+const Logo = styled.div`font-size: 20px;`;
+const Progress = styled.div`font-size: 16px;`;
+const SkipButton = styled.button`
+  background: none;
+  border: none;
+  color: white;
+  font-size: 16px;
+  cursor: pointer;
 `;
 
 const MainContent = styled.div`
+  position:relative;
+height:100%;
   text-align: center;
-  padding: 20px;
+  gap:40px;
+  padding: 40px;
 `;
 
 const Title = styled.h1`
@@ -147,32 +154,31 @@ const Description = styled.p`
   margin-bottom: 30px;
 `;
 
+
 const ContentGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 15px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
   max-width: 900px;
-  margin: 0 auto;
+  margin: auto;
 `;
-
 const ContentCard = styled.div`
-  background: ${(props) => (props.selected ? '#007bff' : '#fff')};
-  border: 2px solid ${(props) => (props.selected ? '#007bff' : '#ddd')};
-  color: ${(props) => (props.selected ? '#fff' : '#333')};
-  border-radius: 8px;
-  padding: 15px;
+  background: ${(props) => (props.selected ?'#006D77' : 'white')};
+  border-radius: 10px;
+  padding: 20px;
   text-align: center;
   cursor: pointer;
   transition: all 0.3s ease;
-
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   &:hover {
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
   }
 `;
 
 const Icon = styled.div`
-  font-size: 30px;
+   font-size: 30px;
   margin-bottom: 10px;
+  color: ${(props) => (props.selected ? '#E5E5E5' : '#004d40')};
 `;
 
 const ContentName = styled.h2`
@@ -180,9 +186,10 @@ const ContentName = styled.h2`
   font-weight: bold;
 `;
 
+
 const ErrorMessage = styled.div`
   color: red;
-  margin-top: 15px;
+  margin-top: 20px;
 `;
 
 const SuccessMessage = styled.div`
@@ -191,17 +198,17 @@ const SuccessMessage = styled.div`
 `;
 
 const NextButton = styled.button`
-  margin-top: 20px;
-  padding: 12px 20px;
+  margin-top: 30px;
+  margin-bottom:40%;
+  padding: 12px 24px;
   font-size: 16px;
-  color: #fff;
-  background-color: #007bff;
+  background-color: #006D77;
+  color: white;
   border: none;
   border-radius: 5px;
   cursor: pointer;
-  transition: background-color 0.3s ease;
-
+  transition: background 0.3s ease;
   &:hover {
-    background-color: #0056b3;
+    background-color: #00332e;
   }
 `;
