@@ -2,6 +2,9 @@ import React, { useState } from 'react';
 import styled from 'styled-components';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom'; 
+import { auth, googleProvider, facebookProvider } from "../firebaseConfig";
+import { signInWithPopup } from "firebase/auth";
+import Footer from './Footer';
 
 const Signup = () => {
   const [formData, setFormData] = useState({
@@ -12,6 +15,7 @@ const Signup = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const navigate = useNavigate();
+  
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -37,6 +41,8 @@ const Signup = () => {
         confirmPassword,
       });
 
+      
+
       localStorage.setItem("userEmail", email);
       console.log("✅ Email stored in LocalStorage:", email);
 
@@ -50,21 +56,53 @@ const Signup = () => {
     }
   };
 
+  const handleGoogleSignup = async () => {
+    try {
+        const result = await signInWithPopup(auth, googleProvider);
+        const user = result.user;
+
+        console.log("Google Sign-In Success:", user);
+
+        // Send user details to your backend
+        const backendUrl = "http://localhost:5500/api/signup/google"; 
+
+        const response = await fetch(backendUrl, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              email: user?.email,  
+              name: user?.displayName, 
+              profilePicture: user?.photoURL,
+            }),
+        });
+
+        if (response.ok) {
+            console.log("User stored in backend successfully.");
+            navigate("/your-name"); // Redirect after successful signup
+        } else {
+            console.error("Failed to store user in backend.");
+        }
+    } catch (error) {
+        console.error("Google Sign-In Error:", error);
+    }
+};
+  
+  const handleFacebookSignup = async () => {
+    try {
+      const result = await signInWithPopup(auth, facebookProvider);
+      console.log("Facebook Sign-In Success:", result.user);
+      // Send user data to backend if needed
+    } catch (error) {
+      console.error("Facebook Sign-In Error:", error);
+    }
+  };
+  
+
   return (
     <PageWrapper>
-      <Header>
-        <Logo>Instalinked</Logo>
-        <Nav>
-          <NavItem>Menu Item 1</NavItem>
-          <NavItem>Menu Item 2</NavItem>
-          <NavItem>Menu Item 3</NavItem>
-          <NavItem>Menu Item 4</NavItem>
-          <NavAuth>
-            <NavItem>Login</NavItem>
-            <NavItem active>Sign Up</NavItem>
-          </NavAuth>
-        </Nav>
-      </Header>
+      
       <Main>
         <Placeholder />
         <FormWrapper>
@@ -114,6 +152,20 @@ const Signup = () => {
 
             {/* Submit Button */}
             <SubmitButton type="submit">Register</SubmitButton>
+            <Separator><SeparatorText>Or sign up with</SeparatorText></Separator>
+              <OAuthButtons>
+              <GoogleButton onClick={handleGoogleSignup} >
+              <GoogleLogo 
+              src="googleicon.png"
+              alt="Google Logo" />
+
+          sign up with Google
+        </GoogleButton>
+        <FacebookButton onClick={handleFacebookSignup}>
+                <GoogleLogo src="facebookicon.png" alt="Google Logo" />
+                sign up with Facebook
+                </FacebookButton>
+              </OAuthButtons>
             <LoginLink>
   Already have an account? <span onClick={() => navigate('/login')}>Login</span>
 </LoginLink>
@@ -121,21 +173,8 @@ const Signup = () => {
           </Form>
         </FormWrapper>
       </Main>
-      <Footer>
-        <FooterWrapper>
-          <FooterLogo>Instalinked</FooterLogo>
-          <FooterLinks>
-            <FooterLink>Pricing</FooterLink>
-            <FooterLink>About us</FooterLink>
-            <FooterLink>Features</FooterLink>
-            <FooterLink>Help Center</FooterLink>
-            <FooterLink>Contact us</FooterLink>
-            <FooterLink>FAQs</FooterLink>
-            <FooterLink>Careers</FooterLink>
-          </FooterLinks>
-        </FooterWrapper>
-        <Copyright>© 2025 Brand, Inc. • Privacy • Terms • Sitemap</Copyright>
-      </Footer>
+      <Footer/>
+      
     </PageWrapper>
   );
 };
@@ -147,45 +186,7 @@ const PageWrapper = styled.div`
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  background: #f0f2f5;
-`;
-
-const Header = styled.header`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 15px 30px;
-  background: #fff;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-`;
-
-const Logo = styled.div`
-  font-size: 22px;
-  font-weight: bold;
-  color: #007bff;
-`;
-
-const Nav = styled.nav`
-  display: flex;
-  align-items: center;
-`;
-
-const NavItem = styled.div`
-  margin-left: 20px;
-  font-size: 16px;
-  color: ${(props) => (props.active ? '#007bff' : '#333')};
-  font-weight: ${(props) => (props.active ? 'bold' : 'normal')};
-  cursor: pointer;
-
-  &:hover {
-    color: #007bff;
-  }
-`;
-
-const NavAuth = styled.div`
-  display: flex;
-  align-items: center;
-  margin-left: 40px;
+  background: #f4f2ee;
 `;
 
 const Main = styled.main`
@@ -199,14 +200,14 @@ const Main = styled.main`
 const Placeholder = styled.div`
   width: 400px;
   height: 300px;
-  background: #e0e0e0;
+  background: #80b6bb;
   border-radius: 10px;
 `;
 
 const FormWrapper = styled.div`
   width: 400px;
   padding: 30px;
-  background: #fff;
+  background: #ffffff;
   border-radius: 10px;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
 `;
@@ -215,7 +216,7 @@ const Title = styled.h2`
   margin-bottom: 25px;
   text-align: center;
   font-size: 24px;
-  color: #333;
+  color: #000000;
   font-weight: bold;
 `;
 
@@ -233,7 +234,7 @@ const Input = styled.input`
   transition: border-color 0.2s;
 
   &:focus {
-    border-color: #007bff;
+    border-color: #006d77;
   }
 `;
 
@@ -256,16 +257,67 @@ const SubmitButton = styled.button`
   padding: 12px;
   font-size: 16px;
   color: #fff;
-  background-color: #007bff;
+  background-color: #006d77;
   border: none;
   border-radius: 5px;
   cursor: pointer;
   transition: background-color 0.2s;
 
   &:hover {
-    background-color: #0056b3;
+    background-color: #004d55;
   }
 `;
+
+const OAuthButtons = styled.div`
+  display: flex;
+  gap: 10px;
+  margin-bottom: 10px;
+`;
+
+const GoogleButton = styled.button`
+  padding: 10px;
+  background: white;
+  border: 1px solid #ddd;
+  display: flex;
+    position: relative;
+    width: 100%;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 15px;
+    border: none;
+    background-color: #ffffff;
+    color: #757575;
+    font-size: 13px;
+    font-weight: bold;
+    border-radius: 5px;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+`;
+
+
+const FacebookButton = styled.button`
+  
+  background: white;
+  border: 1px solid #ddd;
+  display: flex;
+    position: relative;
+    width: 100%;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 10px;
+    border: none;
+    background-color: #ffffff;
+    color: #757575;
+    font-size: 13px;
+    font-weight: bold;
+    border-radius: 5px;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+`;
+const GoogleLogo =styled.img`
+width: 20px;
+height: 20px;
+margin-right: 10px;`
 
 const ErrorMessage = styled.div`
   color: red;
@@ -278,6 +330,28 @@ const SuccessMessage = styled.div`
   font-size: 14px;
   margin-bottom: 10px;
 `;
+
+const Separator = styled.div`
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 10px 0;
+
+  &::before,
+  &::after {
+    content: "";
+    flex: 1;
+    border-bottom: 1px solid #ccc;
+    margin: 0 10px;
+  }
+`;
+
+const SeparatorText = styled.span`
+  font-size: 14px;
+  color: #555;
+  font-weight: 500;
+`;
+
 const LoginLink = styled.div`
   margin-top: 15px;
   font-size: 14px;
@@ -285,7 +359,7 @@ const LoginLink = styled.div`
   color: #555;
 
   span {
-    color: #007bff;
+    color: #006d77;
     font-weight: bold;
     cursor: pointer;
 
@@ -295,45 +369,3 @@ const LoginLink = styled.div`
   }
 `;
 
-
-const Footer = styled.footer`
-  background: #f8f9fa;
-  padding: 30px 15px;
-  text-align: center;
-`;
-
-const FooterWrapper = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 15px;
-  margin-bottom: 20px;
-`;
-
-const FooterLogo = styled.div`
-  font-size: 18px;
-  font-weight: bold;
-  color: #007bff;
-`;
-
-const FooterLinks = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 10px;
-`;
-
-const FooterLink = styled.div`
-  font-size: 14px;
-  color: #333;
-  cursor: pointer;
-
-  &:hover {
-    color: #007bff;
-  }
-`;
-
-const Copyright = styled.div`
-  font-size: 14px;
-  color: #888;
-`;

@@ -6,6 +6,7 @@ const speakeasy = require('speakeasy');
 const User = require('../models/user'); 
 require('dotenv').config(); 
 
+
 // Create a transporter with your email details
 const transporter = nodemailer.createTransport({
   service: 'Gmail',
@@ -55,14 +56,6 @@ router.post('/signup', async (req, res) => {
 
     await newUser.save();
 
-    // Send Welcome Email
-    /*await transporter.sendMail({
-      from: 'morawalasakina932@gmail.com',
-      to: email,
-      subject: 'Welcome to Instalinked!',
-      text: 'Thank you for signing up! Begin your journey with Instalinked.'
-    });
-    */
 
     // Send OTP Email
     Promise.all([
@@ -85,6 +78,37 @@ router.post('/signup', async (req, res) => {
   } catch (error) {
     console.error('Error during signup:', error.message);
     res.status(500).json({ message: 'Server error.' });
+  }
+});
+
+// 🔹 Google Signup Route (Inside Same File)
+router.post("/signup/google", async (req, res) => {
+  try {
+    const { email, name, profilePicture } = req.body;
+
+    if (!email || !name) {
+      return res.status(400).json({ message: "Missing required fields." });
+  }
+
+
+    // Check if user already exists
+    let user = await User.findOne({ email });
+
+    if (!user) {
+      // Create new user (without password)
+      user = new User({
+        email,
+        name,
+        profilePicture,
+        password: null, // No password for Google users
+      });
+      await user.save();
+    }
+
+    res.status(201).json({ message: "Google signup successful", user });
+  } catch (error) {
+    console.error("Error during Google signup:", error.message);
+    res.status(500).json({ message: "Server error during Google signup." });
   }
 });
 

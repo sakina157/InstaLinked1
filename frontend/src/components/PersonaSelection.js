@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
 import { useNavigate,useLocation  } from 'react-router-dom';
-
+import logo from '../images/Artboard 1.svg';
 
 const PersonaSelection = ( ) => {
   
@@ -28,7 +28,7 @@ const PersonaSelection = ( ) => {
       setSelectedPersonas((prev) => [...prev, persona]);
     }
 
-    console.log("Selected Personas:", selectedPersonas);
+    console.log("Selected Personas:", [...selectedPersonas]);
   };
 
   const handleSubmit = async () => {
@@ -54,31 +54,44 @@ const PersonaSelection = ( ) => {
         body: JSON.stringify({ email: userEmail, persona: selectedPersonas }),
       });
 
-      const data = await response.json();
-      console.log('Response received:', data);
+      console.log("🛠 Raw response status:", response.status);
+    const text = await response.text();  // Read raw response
+    console.log("🛠 Raw response body:", text);
+
+    try {
+      const data = JSON.parse(text); // Convert to JSON
+      console.log("Response received:", data);
 
       if (response.ok) {
         setSuccessMessage(data.message);
-        navigate('/content-selection', { state: { email: userEmail } });
+        navigate("/content-selection", { state: { email: userEmail } });
       } else {
         setErrorMessage(data.message);
       }
     } catch (error) {
-      console.error('Error submitting persona:', error);
-      setErrorMessage('Something went wrong.');
+      console.error("❌ Failed to parse JSON:", text);
+      setErrorMessage("Something went wrong. Server response was not JSON.");
     }
-  };
+  } catch (error) {
+    console.error("Error submitting persona:", error);
+    setErrorMessage("Something went wrong.");
+  }
+};
 
   return (
     <PageWrapper>
       <Header>
-        <Logo>Instalinked</Logo>
+        <Logo><img src={logo} alt="InstaLinked Logo" style={{ height: '25px' }} /></Logo>
         <Progress>Steps 2/3</Progress>
-        <SkipButton onClick={() => navigate('/content-selection')}>Skip</SkipButton>
+        
       </Header>
 
       <MainContent>
+        <TitleWrapper>
         <Title>Select Your Persona</Title>
+        <SkipButton onClick={() => navigate('/content-selection')}>Skip</SkipButton>
+        </TitleWrapper>
+
         <Description>
           Tell us who you are to tailor your experience on the Instalinked platform.
         </Description>
@@ -92,6 +105,20 @@ const PersonaSelection = ( ) => {
             >
               <Icon>👤</Icon>
               <PersonaName>{persona}</PersonaName>
+              <PersonaDescription>
+                {persona === 'Heritage Lover' &&
+                  'Someone passionate about preserving cultural heritage.'}
+                {persona === 'Explorer' &&
+                  'A wanderer curious about new places, stories, and cultures.'}
+                {persona === 'Researcher' &&
+                  'A professional involved in cultural research and studies.'}
+                {persona === 'Practitioner' &&
+                  'A specialist dedicated to cultural practices and traditions.'}
+                {persona === 'Conservator' &&
+                  'A professional focused on preserving historical and cultural items.'}
+                {persona === 'Artist' &&
+                  'A creative individual inspired by cultural heritage.'}
+              </PersonaDescription>
             </PersonaCard>
           ))}
         </PersonaGrid>
@@ -114,7 +141,7 @@ const PageWrapper = styled.div`
   align-items: center;
   justify-content: center;
   min-height: 100vh;
-  background: #f8f9fa;
+  background: #f4f2ee;
 `;
 
 const Header = styled.div`
@@ -122,42 +149,62 @@ const Header = styled.div`
   justify-content: space-between;
   align-items: center;
   width: 100%;
-  padding: 10px 20px;
-  background: #fff;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  max-width: 1200px;
+  padding: 10px 0;
+  
 `;
 
 const Logo = styled.div`
   font-size: 20px;
   font-weight: bold;
+  color: #006d77;
+  img {
+    height: 20px; 
+    width: auto;
 `;
 
 const Progress = styled.div`
-  font-size: 14px;
+  font-size: 18px;
   color: #555;
 `;
 
-const SkipButton = styled.button`
-  background: none;
-  border: none;
-  color: #007bff;
-  font-size: 14px;
-  cursor: pointer;
-
-  &:hover {
-    text-decoration: underline;
-  }
-`;
-
 const MainContent = styled.div`
-  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 1200px;
   padding: 20px;
+`;
+const TitleWrapper = styled.div`
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  position: relative;
+  margin-bottom: 10px;
 `;
 
 const Title = styled.h1`
   font-size: 24px;
   font-weight: bold;
   margin-bottom: 10px;
+  color: #006d77;
+  align-font: center;
+`;
+
+const SkipButton = styled.button`
+  position: absolute;
+  right: 0;
+  background: none;
+  border: none;
+  color: #006d77;
+  font-size: 16px;
+  cursor: pointer;
+
+  &:hover {
+    text-decoration: underline;
+  }
 `;
 
 const Description = styled.p`
@@ -168,16 +215,17 @@ const Description = styled.p`
 
 const PersonaGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 20px;
-  max-width: 1200px;
-  margin: 0 auto;
+  grid-template-columns: repeat(3, 1fr); 
+  gap: 20px; // Space between cards
+  width: 100%;
+  max-width: 1000px;
+  margin: 0 auto; 
 `;
 
 const PersonaCard = styled.div`
-  background: ${(props) => (props.selected ? '#007bff' : '#fff')};
-  border: 1px solid ${(props) => (props.selected ? '#007bff' : '#ddd')};
-  color: ${(props) => (props.selected ? '#fff' : '#333')};
+  background: ${(props) => (props.selected ? '#006d77' : '#ffffff')};
+  border: 1px solid ${(props) => (props.selected ? '#006d77' : '#ddd')};
+  color: ${(props) => (props.selected ? '#ffffff' : '#333')};
   border-radius: 8px;
   padding: 20px;
   text-align: center;
@@ -190,7 +238,7 @@ const PersonaCard = styled.div`
 `;
 
 const Icon = styled.div`
-  font-size: 30px;
+  font-size: 25px;
   margin-bottom: 10px;
 `;
 
@@ -198,6 +246,12 @@ const PersonaName = styled.h2`
   font-size: 18px;
   font-weight: bold;
   margin-bottom: 10px;
+`;
+
+const PersonaDescription = styled.p`
+  font-size: 14px;
+  color: ${(props) => (props.selected ? '#ffffff' : '#555')};
+  line-height: 1.5;
 `;
 
 const ErrorMessage = styled.div`
@@ -215,13 +269,13 @@ const NextButton = styled.button`
   padding: 12px 20px;
   font-size: 16px;
   color: #fff;
-  background-color: #007bff;
+  background-color: #006d77;
   border: none;
   border-radius: 5px;
   cursor: pointer;
   transition: background-color 0.3s ease;
 
   &:hover {
-    background-color: #0056b3;
+    background-color: #004d55;
   }
 `;

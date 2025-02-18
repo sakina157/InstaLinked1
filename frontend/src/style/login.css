@@ -1,0 +1,115 @@
+/* Center the form on the page */
+/*body {
+    font-family: Arial, sans-serif;
+    background-color: #f3f3f3;
+    margin: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+  }
+.login-page {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+  .login-container {
+    width: fit-content;
+    align-items: center;
+    justify-content: center;
+  }
+  form {
+    background: #ffffff;
+    width: 100%;
+    position : relative;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+    width: 300px;
+  }
+  .error {
+    text-align: center;
+    color:rgb(88, 0, 0)
+  }
+  h2 {
+    text-align: center;
+    margin-bottom: 20px;
+    color: #333333;
+  }
+  
+  input {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 15px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    box-sizing: border-box;
+    font-size: 14px;
+  }
+  
+  input:focus {
+    border-color: #4caf50;
+    outline: none;
+    box-shadow: 0px 0px 5px rgba(76, 175, 80, 0.5);
+  }
+  
+  button {
+    width: 100%;
+    background: #4caf50;
+    color: white;
+    padding: 10px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+  }
+  
+  button:hover {
+    background: #45a049;
+  }
+  
+  a {
+    display: block;
+    text-align: center;
+    margin-top: 10px;
+    color: #4caf50;
+    text-decoration: none;
+    font-size: 14px;
+  }
+  
+  a:hover {
+    text-decoration: underline;
+  }
+  .google-login {
+    margin-top: 20px;
+    text-align: center;
+  }
+  
+  .google-login-btn {
+    display: flex;
+    position: relative;
+    width: 100%;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 15px;
+    border: none;
+    background-color: #ffffff;
+    color: #757575;
+    font-size: 16px;
+    font-weight: bold;
+    border-radius: 5px;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  }
+  
+  .google-login-btn:hover {
+    background-color: #f1f1f1;
+  }
+  
+  .google-logo {
+    width: 20px;
+    height: 20px;
+    margin-right: 10px;
+  }
+  */
