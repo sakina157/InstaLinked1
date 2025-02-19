@@ -27,7 +27,7 @@ const Navbar = ({ userProfile }) => {
         </NavIcon>
         <NavIcon><FaEnvelope /></NavIcon>
         <NavLink href="/profile"><ProfileImage src={user?.profileImage || default_user}  alt="User Profile" /></NavLink>
-        <NavIcon><FaCog /></NavIcon>
+        <NavLink href="/settings"><FaCog size={25} /></NavLink>
       </RightSection>
     </NavBarContainer>
   );
@@ -44,6 +44,10 @@ const NavBarContainer = styled.nav`
   padding: 10px 20px;
   width: 100%;
   height:8vh;
+  position: fixed; 
+  top: 0;
+  left: 0;
+  z-index: 1000;
 `;
 
 const LeftSection = styled.div`
@@ -54,12 +58,13 @@ const LeftSection = styled.div`
 
 const Logo = styled.img`
 position:relative;
-  height:100%;
+width: 120px;
+height:100%;
 `;
 
 const SearchBar = styled.input`
 position:relative;
-  width: 30vw;
+  width: 28vw;
   padding: 8px;
   border: none;
   border-radius: 5px;
@@ -71,11 +76,12 @@ const RightSection = styled.div`
   display: flex;
   align-items: center;
   gap: 20px;
+  margin-right: 25px;
 `;
 
 const NavIcon = styled.div`
   color: white;
-  font-size: 25px;
+  font-size: 24px;
   cursor: pointer;
   position: relative;
 `;
@@ -96,8 +102,8 @@ const NotificationBadge = styled.span`
 `;
 
 const ProfileImage = styled.img`
-  height: 20px;
-  width: 20px;
+  height: 30px;
+  width: 30px;
   border-radius: 50%;
   object-fit: cover;
   border: 2px solid white;

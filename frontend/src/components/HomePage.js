@@ -4,7 +4,6 @@ import { FaHome, FaPlusCircle, FaBell, FaEnvelope, FaCog,FaWpexplorer } from "re
 import default_user from '../images/default_user.jpg'
 import logo from "../images/logo.svg"
 import { Link, useNavigate } from 'react-router-dom';
-import { auth } from "../firebaseConfig";
 
 
 
@@ -80,42 +79,47 @@ const Reel = ({ reel, onLike }) => {
 };
 
 const HomePage = () => {
-  const user = JSON.parse(localStorage.getItem("user")) || {};
+  const storedUser = JSON.parse(localStorage.getItem("user")) || {};
+  const user = storedUser._id ? storedUser : null; 
   const navigate = useNavigate();
-  const [username, setUsername] = useState("John Doe"); // Default fallback
-  
+  const [username, setUsername] = useState(storedUser.username || "Loading...");
+  const [profileImage, setProfileImage] = useState(storedUser.profileImage || default_user);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
+
+  // ✅ Get email from LocalStorage
   const userEmail = localStorage.getItem("email");
-  
 
-  const fetchMongoDBUser = async (firebaseUser) => {
+ 
+
+  const fetchUserData = useCallback(async () => {
     try {
-        const response = await axios.get(`http://localhost:5500/api/users/profile/${firebaseUser.email}`);
-        return response.data;
+      const response = await axios.get("http://localhost:5000/api/user/data", {
+        withCredentials: true, // Ensure cookies are sent
+      });
+
+      if (response.data) {
+        setUsername(response.data.username);
+        setProfileImage(response.data.profileImage);
+
+        // ✅ Update LocalStorage to prevent refresh issue
+        localStorage.setItem("username", response.data.username);
+        localStorage.setItem("profileImage", response.data.profileImage);
+
+        console.log("Updated user data from MongoDB.");
+      }
     } catch (error) {
-        console.error("Error fetching MongoDB user:", error);
-        return null;
+      console.error("Error fetching user data:", error);
     }
-};
-
+  }, []); 
+  
+// Call fetchUserData on mount
 useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged(async (User) => {
-        if (User) {
-            const mongoUser = await fetchMongoDBUser(User);
-            if (mongoUser) {
-                setUsername(mongoUser.username);  // ✅ Now using MongoDB's username
-                console.log("MongoDB Username:", mongoUser.username);
-            }
-        }
-    });
-
-    return () => unsubscribe();  // Cleanup function
-}, []);
-
+  fetchUserData();  // ✅ Call function inside useEffect
+}, [fetchUserData]);  // ✅ Empty dependency array
 
   // ✅ Search users
   const handleSearch = async () => {
@@ -130,51 +134,6 @@ useEffect(() => {
     }
     setLoading(false);
   };
-
-  
-
-
-  const fetchUserData = async () => {
-    const storedUser = localStorage.getItem("user");
-
-    if (!storedUser) {
-        console.error("No user data found in localStorage.");
-        return;
-    }
-
-    try {
-        const parsedUser = JSON.parse(storedUser);
-        console.log("Stored User After Refresh:", parsedUser); // ✅ Debugging
-
-        if (!parsedUser._id) {
-            console.error("Error: No user ID found in localStorage.");
-            return;
-        }
-
-        console.log("Fetching user data for userId:", parsedUser._id);
-
-        const response = await axios.get(`http://localhost:5500/api/users/${parsedUser._id}`);
-
-        console.log("Fetched user data:", response.data); // ✅ Debugging
-
-        if (response.data.username) {
-            console.log("Updating username:", response.data.username);
-            setUsername(response.data.username);  // ✅ Ensure correct username is set
-        } else {
-            console.error("Username not found in response.");
-        }
-    } catch (error) {
-        console.error("Error fetching user:", error);
-    }
-};
-
-
-// ✅ Call this function in useEffect
-useEffect(() => {
-    fetchUserData();
-}, []);
-
-  
   
 
 
@@ -271,8 +230,8 @@ useEffect(() => {
         {/* <span style={styles.notificationBadge}>12</span> */}
       </div>
       <a href="/messages" style={styles.navIcon}><FaEnvelope /></a>
-      <Link to={`/profile/${user._id}`} style={styles.navIcon}>
-      <img src={user.profileImage || default_user} alt="User Profile" style={styles.profileImage} />
+      <Link to={`/profile/${user?._id || ""}`} style={styles.navIcon}>
+      <img src={profileImage} alt="User Profile" style={styles.profileImage} />
     </Link>
   
       <a href="/settings" style={styles.navIcon}><FaCog /></a>
@@ -311,6 +270,7 @@ useEffect(() => {
     
 
       {/* Profile Section */}
+      
       <div style={styles.profileSection}>
         <div style={styles.profileInfo}>
           <div style={styles.avatar}>👤</div>

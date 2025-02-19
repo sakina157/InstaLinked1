@@ -16,16 +16,6 @@ const Login = () => {
   const isValidEmail = (input) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input);
   const isValidPhoneNumber = (input) => /^\d{9}$/.test(input);
 
-  // Function to Store User in LocalStorage
-  const saveUserToLocalStorage = (userData) => {
-    if (userData && userData.username) {
-      localStorage.removeItem("user");
-      localStorage.setItem("user", JSON.stringify(userData));
-    } else {
-      console.error("userData is undefined or null", userData);
-    }
-  };
-  
 
   // Handle Email/Password Login
   const handleLogin = async (e) => {
@@ -41,10 +31,10 @@ const Login = () => {
 
       const userData = {
         token: response.data.token,
-            _id: response.data.user._id,  // ✅ Store user ID correctly
-            username: response.data.user.username,  // ✅ Store username
-            email: response.data.user.email,
-            profilePicture: response.data.user.profilePicture,
+         _id: response.data.user._id,
+         username: response.data.user.username || "New User",  // Default fallback
+        email: response.data.user.email,
+        profilePicture: response.data.user.profilePicture || "default_user.jpg",
       };
       
       localStorage.setItem("user", JSON.stringify(userData));
@@ -61,32 +51,47 @@ const Login = () => {
 
   // Handle Google Login
   const handleGoogleLogin = async () => {
-    setErrorMessage("");
+    setErrorMessage(""); // Reset error state
     const provider = new GoogleAuthProvider();
+  
     try {
       const result = await signInWithPopup(auth, provider);
-      const idToken = await result.user.getIdToken();
-
+      const idToken = await result.user.getIdToken(); 
+  
       console.log("Google Login ID Token:", idToken);
-      const response = await axios.post("/api/auth/login-google", { firebaseToken: idToken });
-      
-      const userData = {
-        token: response.data.token, 
-        username: response.data.username,  // ✅ Ensure username is stored
-        email: response.data.email
-      };
-      
-      saveUserToLocalStorage(userData);
-      
-      console.log("Stored User:", JSON.parse(localStorage.getItem("user")));  // ✅ Debugging
-      
-      navigate("/Home");
-      
+  
+      // ✅ Send token to backend
+      const response = await axios.post("http://localhost:5500/api/auth/google-signup", { firebaseToken: idToken });
+
+  
+      if (response.data) {
+        const userData = {
+          token: response.data.token, 
+          _id: response.data.user._id,  // Store user ID
+          username: response.data.user.username || "New User",  // Ensure username is stored
+          email: response.data.user.email,
+          profilePicture: response.data.user.profileImage || "default_user.jpg",
+        };
+  
+        // ✅ Store user in localStorage
+        localStorage.setItem("user", JSON.stringify(userData));
+        localStorage.setItem("email", response.data.user.email);
+        localStorage.setItem("username", response.data.user.username || "New User");
+        localStorage.setItem("profileImage", response.data.user.profileImage || "default_user.jpg");
+
+  
+        console.log("✅ Stored User:", JSON.parse(localStorage.getItem("user"))); // Debugging
+  
+        navigate("/home");  // ✅ Redirect to home after login
+      } else {
+        throw new Error("Invalid response from backend");
+      }
     } catch (error) {
-      console.error(error);
-      setErrorMessage("Google login failed.");
+      console.error("Google Login Error:", error);
+      setErrorMessage("Google login failed. Please try again.");
     }
   };
+  
 
   return (
     <PageWrapper>

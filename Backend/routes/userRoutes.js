@@ -12,36 +12,22 @@ router.post("/unfollow", unfollowUser);
 router.get("/profile/:email", getUserProfile);
 router.get("/users/:userId", getUser);
 
+router.get("/firebase/:firebaseUID", async (req, res) => {
+    try {
+        const { firebaseUID } = req.params;
+        console.log("Received Firebase UID:", firebaseUID);
 
-router.get("/:id", async (req, res) => {
-  try {
-      let userId = req.params.id.trim();
-      console.log("Received user ID:", userId);
+        const user = await User.findOne({ firebaseUID });
+        
+        if (!user) {
+            return res.status(404).json({ error: "User not found" });
+        }
 
-      let user;
-      
-      // First, try to find by ObjectId if it's valid
-      if (mongoose.Types.ObjectId.isValid(userId)) {
-          user = await User.findById(userId);
-      }
-
-      // If no user found and _id might be a string, try finding as a string
-      if (!user) {
-          user = await User.findOne({ _id: userId });
-      }
-
-      if (!user) {
-          return res.status(404).json({ error: "User not found" });
-      }
-
-      res.json(user);
-  } catch (error) {
-      console.error("Error fetching user:", error);
-      res.status(500).json({ error: "Internal Server Error" });
-  }
+        res.json(user);
+    } catch (error) {
+        console.error("Error fetching user:", error);
+        res.status(500).json({ error: "Internal Server Error" });
+    }
 });
-
-  
-
 
 module.exports = router;

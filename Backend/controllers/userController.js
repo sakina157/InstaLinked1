@@ -119,11 +119,6 @@ const getUserProfile = async (req, res) => {
     }
 };
 
-
-
-
-  
-
 module.exports = { updateUsernameAndPersona, followUser, unfollowUser, getUserProfile, getUser };
 
 

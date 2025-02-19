@@ -3,67 +3,124 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const sendEmail = require("../utils/sendEmail");
 const speakeasy = require("speakeasy");
-//const { OAuth2Client } = require("google-auth-library");
 const admin = require("../firebase");
 require("dotenv").config();
+
+const loginWithGoogle = async (req, res) => {
+  try {
+      const { firebaseToken } = req.body;
+      if (!firebaseToken) {
+          return res.status(400).json({ message: "Google Token is required" });
+      }
+
+      // ✅ Verify Firebase Token
+      const decodedToken = await admin.auth().verifyIdToken(firebaseToken);
+      const { email, name, picture, uid } = decodedToken;
+
+      // ✅ Check if user exists in MongoDB
+      let user = await User.findOne({ email });
+
+      if (!user) {
+          // ✅ Create a new user in MongoDB
+          user = new User({
+              fullName: name || "New User",
+              email,
+              profileImage: picture || "",
+              isVerified: true, // Google signups are auto-verified
+              firebaseUID: uid, // Store Firebase UID
+          });
+          await user.save();
+      }
+
+      // ✅ Generate JWT Token
+      const token = jwt.sign(
+          { userId: user._id, username: user.username, email: user.email },
+          process.env.JWT_SECRET,
+          { expiresIn: "7d" }
+      );
+
+      res.status(200).json({
+          message: "Google login successful",
+          token,
+          user: {
+              _id: user._id,
+              fullName: user.fullName,
+              email: user.email,
+              username: user.username || "New User",  
+              profileImage: user.profileImage,
+              persona: user.persona
+          }
+      });
+
+  } catch (error) {
+      console.error("Google Login Error:", error);
+      res.status(500).json({ message: "Server error", error });
+  }
+};
+
+
 /*
 // Initialize Google OAuth Client
-const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);*/
 
 // **Google Signup**
 const googleSignup = async (req, res) => {
-    try {
-        const { idToken } = req.body;
-        if (!idToken) {
-            return res.status(400).json({ message: "Google ID Token is required." });
-        }
+  try {
+      const { firebaseToken } = req.body;
 
-        // Verify Google ID Token
-        const ticket = await googleClient.verifyIdToken({
-            idToken,
-            audience: process.env.GOOGLE_CLIENT_ID
-        });
+      if (!firebaseToken) {
+          return res.status(400).json({ message: "Firebase token is required." });
+      }
 
-        const { email, name, picture } = ticket.getPayload();
+      // Verify Firebase ID Token
+      const decodedToken = await admin.auth().verifyIdToken(firebaseToken);
 
-        let user = await User.findOne({ email });
+      if (!decodedToken.email) {
+          return res.status(400).json({ message: "No email found in Firebase token." });
+      }
 
-        if (!user) {
-            user = new User({
-                fullName: name,
-                email,
-                profileImage: picture,
-                isVerified: true, // Google signups are auto-verified
-            });
-            await user.save();
-        }
+      const { email, name, picture, uid } = decodedToken;
 
-        // Generate JWT Token
-        const token = jwt.sign(
-            { userId: user._id, email: user.email, username: user.username },
-            process.env.JWT_SECRET,
-            { expiresIn: "7d" }
-        );
+      let user = await User.findOne({ email });
 
-        res.status(200).json({
-            message: "Google signup successful",
-            token,
-            user: {
-                _id: user._id,
-                fullName: user.fullName,
-                email: user.email,
-                username: user.username,
-                profileImage: user.profileImage,
-                persona: user.persona
-            }
-        });
+      if (!user) {
+          user = new User({
+              fullName: name,
+              email,
+              profileImage: picture,
+              firebaseUID: uid,  // Store Firebase UID in MongoDB
+              isVerified: true, // Google signups are auto-verified
+          });
+          await user.save();
+      }
 
-    } catch (error) {
-        console.error("Google Signup Error:", error);
-        res.status(500).json({ message: "Server error", error });
-    }
+      // Generate JWT Token
+      const token = jwt.sign(
+          { userId: user._id, email: user.email, username: user.username },
+          process.env.JWT_SECRET,
+          { expiresIn: "7d" }
+      );
+
+      res.status(200).json({
+          message: "Google signup successful",
+          token,
+          user: {
+              _id: user._id,
+              fullName: user.fullName,
+              email: user.email,
+              username: user.username,
+              profileImage: user.profileImage,
+              persona: user.persona
+          }
+      });
+
+  } catch (error) {
+      console.error("Google Signup Error:", error);
+      res.status(500).json({ message: "Server error", error });
+  }
 };
 
+/*
 // **Facebook Signup**
 const facebookSignup = async (req, res) => {
     try {
@@ -298,6 +355,6 @@ const getUserByEmail = async (req, res) => {
 };
 
 
-module.exports = { register, verifyOTP, checkUsernameAvailability, login, getUser, getUserByEmail  }; 
+module.exports = { register, verifyOTP, checkUsernameAvailability, login, getUser, getUserByEmail, loginWithGoogle, googleSignup }; 
 
 

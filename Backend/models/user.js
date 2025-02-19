@@ -3,6 +3,13 @@ const mongoose = require('mongoose');
 const userSchema = new mongoose.Schema({
     fullName: { type: String },
     profileImage: { type: String },
+    bio: { type: String },
+    phone: { type: String},
+    dateOfBirth: { type: Date },
+    gender: { type: String, enum: ["Male", "Female", "Other"] },
+    location: { type: String },
+    occupation: { type: String },
+    externalLinks: { type: [String] },
     email: { type: String, required: true, unique: true },
     password: { type: String, required: false },
     username: { type: String, unique: true, sparse: true },
@@ -11,7 +18,10 @@ const userSchema = new mongoose.Schema({
     otpExpires: { type: Date }, // Optional: Field to store OTP expiration time
     isVerified: { type: Boolean, default: false },
     contentPreferences: { type: [String], default: [] },
-    following: { type: [String], default: [] },
+    followers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+    following: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+    firebaseUID: { type: String, required: true, unique: true }
+
 });
 
 const User = mongoose.model('User', userSchema);

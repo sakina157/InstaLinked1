@@ -63,8 +63,11 @@ const Signup = () => {
 
         console.log("Google Sign-In Success:", user);
 
-        // Send user details to your backend
-        const backendUrl = "http://localhost:5500/api/signup/google"; 
+        // Get Firebase ID token
+        const idToken = await user.getIdToken();
+
+        // Send user details to backend
+        const backendUrl = "http://localhost:5500/api/auth/signup-google"; 
 
         const response = await fetch(backendUrl, {
             method: "POST",
@@ -72,22 +75,40 @@ const Signup = () => {
                 "Content-Type": "application/json",
             },
             body: JSON.stringify({
-              email: user?.email,  
-              name: user?.displayName, 
-              profilePicture: user?.photoURL,
+              firebaseToken: idToken, 
+              email: user.email,  
+              fullName: user.displayName, 
+              profileImage: user.photoURL,
             }),
         });
 
+        const data = await response.json();
+
         if (response.ok) {
-            console.log("User stored in backend successfully.");
-            navigate("/your-name"); // Redirect after successful signup
+            console.log("User stored in backend successfully:", data);
+
+            // ✅ Store user data in localStorage
+            const userData = {
+                token: data.token,
+                _id: data.user._id,
+                email: data.user.email,
+                username: data.user.username || "New User",
+                profileImage: data.user.profileImage || "default_user.jpg"
+            };
+
+            localStorage.setItem("user", JSON.stringify(userData));
+
+            // ✅ Navigate to Name Selection page
+            navigate("/your-name", { state: { email: user.email } });
         } else {
-            console.error("Failed to store user in backend.");
+            console.error("Failed to store user in backend:", data);
         }
     } catch (error) {
         console.error("Google Sign-In Error:", error);
     }
 };
+
+  
   
   const handleFacebookSignup = async () => {
     try {
