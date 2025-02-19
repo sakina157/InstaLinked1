@@ -1,7 +1,12 @@
 const mongoose = require("mongoose");
 const express = require("express");
 const router = express.Router();
-const User = require("../models/user"); // Adjust model path as per your structure
+const User = require("../models/user"); 
+const {createProfile,upload }=require("../controllers/profileController")
+
+router.post("/create-profile",upload.single('profileImage'),createProfile)
+
+
 
 // Fetch user by ID
 router.get("/user/:id", async (req, res) => {

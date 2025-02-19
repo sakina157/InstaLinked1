@@ -45,7 +45,7 @@ const commentRoutes = require("./routes/commentRoutes");
 const CreatePostRoute = require('./routes/CreatePostRoute');
 const homeSearchRoutes = require("./routes/homesearch");
 const profileRoutes = require("./routes/profile");
-const profileRoutes=require('./routes/profileRoutes')
+
 
 
 // ✅ Debugging: Confirm Persona Route is Loaded
@@ -67,7 +67,7 @@ app.use("/api/comments", commentRoutes);
 app.use('/api', CreatePostRoute);
 app.use("/api", homeSearchRoutes);
 app.use("/api", profileRoutes);
-app.use('/api/profile',profileRoutes);
+
 
 
 // ✅ Create Post API

@@ -2,7 +2,8 @@ const User = require('../models/user');
 const multer = require('multer');
 const path = require('path');
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
-const cloudinary = require('./cloudinaryConfig')
+const cloudinary = require('../cloudinaryConfig');
+
 
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
@@ -74,20 +75,11 @@ const upload = multer({
     }
   };
 
-const displayProfile = async(req,res) => {
-    const email="mariyaa.d6@gmail.com"
-    const existingUser = await User.findOne({ email });
-    console.log(existingUser)
-    if(existingUser) {
-      res.json(existingUser)
 
-    }
-
-}
 
 
 module.exports = {
   createProfile,
   upload,
-  displayProfile 
+ 
 };
