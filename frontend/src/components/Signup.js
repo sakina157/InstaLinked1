@@ -29,6 +29,12 @@ const Signup = () => {
 
     const { email, password, confirmPassword } = formData;
 
+    // ✅ Check password length
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters long.');
+      return;
+    }
+
     if (password !== confirmPassword) {
       setError('Passwords do not match.');
       return;
@@ -167,7 +173,8 @@ const Signup = () => {
             <CheckboxWrapper>
               <Checkbox type="checkbox" id="terms" required />
               <CheckboxLabel htmlFor="terms">
-                By signing up, I agree with the Terms & Privacy Policy.
+                By signing up, I agree with the {" "}
+                <TermsLink onClick={() => navigate('/terms')}>Terms & Privacy Policy</TermsLink>.
               </CheckboxLabel>
             </CheckboxWrapper>
 
@@ -179,12 +186,11 @@ const Signup = () => {
               <GoogleLogo 
               src="googleicon.png"
               alt="Google Logo" />
-
-          sign up with Google
+          Sign up with Google
         </GoogleButton>
         <FacebookButton onClick={handleFacebookSignup}>
                 <GoogleLogo src="facebookicon.png" alt="Google Logo" />
-                sign up with Facebook
+                Sign up with Facebook
                 </FacebookButton>
               </OAuthButtons>
             <LoginLink>
@@ -273,6 +279,15 @@ const CheckboxLabel = styled.label`
   font-size: 14px;
   color: #555;
 `;
+const TermsLink = styled.span`
+  color: #007bff;
+  cursor: pointer;
+  text-decoration: underline;
+  &:hover {
+    color: #0056b3;
+  }
+`;
+
 
 const SubmitButton = styled.button`
   padding: 12px;
@@ -389,4 +404,3 @@ const LoginLink = styled.div`
     }
   }
 `;
-

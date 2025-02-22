@@ -72,14 +72,17 @@ const NavbarContainer = styled.div`
   }
 
   .nav-links a {
-    text-decoration: none;
-    color: white;
-    font-size: 16px;
-  }
+  text-decoration: none;
+  color: white;
+  font-size: 16px;
+  transition: letter-spacing 0.3s ease-in-out, color 0.3s ease-in-out;
+}
 
-  .nav-links a:hover {
-    text-decoration: underline;
-  }
+.nav-links a:hover {
+  letter-spacing: 2px;
+  color: #83C5BE; /* Light cyan-blue */
+}
+
 
   .auth-links {
     display: flex;

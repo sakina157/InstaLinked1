@@ -47,7 +47,7 @@ export default Footer;
 
 // Styled Components
 const FooterContainer = styled.footer`
-  background: #004d4d;
+  background: #006D77;
   color: white;
   padding: 40px 0;
   text-align: center;
@@ -55,23 +55,26 @@ const FooterContainer = styled.footer`
 
 const TopSection = styled.div`
   display: flex;
-  justify-content: center;
+  flex-direction: column; /* Stack items vertically */
   align-items: center;
-  flex-wrap: wrap;
-  gap: 20px;
-  margin-bottom: 20px;
+  text-align: center;
+  gap: 8px;
+  margin-bottom: 0px;
+  padding-top: 0px;
 `;
 
 const Logo = styled.img`
-position:relative;
-  height:80% ;
+  height: 120px; 
+  margin-bottom: 0px;
 `;
 
 const NavLinks = styled.div`
   display: flex;
   flex-wrap: wrap;
-  gap: 40px;
+  justify-content: center; 
+  gap: 20px;
 `;
+
 
 const NavItem = styled.a`
   color: white;

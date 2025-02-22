@@ -4,7 +4,6 @@ const cors = require('cors');
 const connectDB = require('./database');
 const User = require('./models/user');
 const Post = require('./models/post');
-const Persona = require('./models/persona');
 
 
 dotenv.config();

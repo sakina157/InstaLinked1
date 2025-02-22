@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const User = require("../models/user");
-const Persona = require('../models/persona');
+
 
 
 // ✅ Check if username already exists
@@ -16,7 +16,7 @@ router.get("/check-username/:username", async (req, res) => {
   }
 
   try {
-    const existingUser = await Persona.findOne({ username: username.trim() });
+    const existingUser = await User.findOne({ username: username.trim() });
 
     console.log("🔍 Database Check:", existingUser); // Debugging
 
@@ -26,7 +26,6 @@ router.get("/check-username/:username", async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
-
 
 
 // ✅ Set Username
@@ -103,6 +102,8 @@ router.post('/', async (req, res) => {
     res.status(500).json({ message: 'Server error. Please try again later.' });
   }
 });
+
+
 
 
 

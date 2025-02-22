@@ -5,6 +5,8 @@ const postSchema = new mongoose.Schema({
   userId: { type: String, required: true }, 
   content: { type: String, required: true },
   role: { type: String, required: true },
+  author: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+  createdAt: { type: Date, default: Date.now },
   time: { type: Date, default: Date.now }, // Store actual timestamp
   text: { type: String, required: true },
   image: { type: String, required: true }, // Cloudinary image URL

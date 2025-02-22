@@ -40,7 +40,7 @@ const NameSelection = () => {
     setLoading(true);
     try {
       const response = await axios.get(
-        `http://localhost:5500/api/persona/check-username/${encodeURIComponent(username)}`
+        `http://localhost:5500/api/check-username/${encodeURIComponent(username)}`
       );
 
       console.log("Username Check Response:", response.data); // Debugging
@@ -71,11 +71,12 @@ const NameSelection = () => {
         setError("Username is already taken. Choose another one.");
         return;
     }
+    console.log("Sending request:", { username, email }); 
 
     setLoading(true);
     try {
         const saveResponse = await axios.post(
-            "http://localhost:5500/api/persona/set-username",
+            "http://localhost:5500/api/set-username",
             { username, email }
         );
 

@@ -50,8 +50,8 @@ router.post('/signup', async (req, res) => {
       email,
       password: hashedPassword,
       otp, // Store OTP temporarily
-      otpExpires: Date.now() + 300000 // Expiry time (5 minutes)
-      
+      otpExpires: Date.now() + 300000, // Expiry time (5 minutes)
+      firebaseUID: "email_signup",
     });
 
     await newUser.save();

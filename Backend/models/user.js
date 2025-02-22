@@ -13,16 +13,16 @@ const userSchema = new mongoose.Schema({
     email: { type: String, required: true, unique: true },
     password: { type: String, required: false },
     username: { type: String, unique: true, sparse: true },
-    persona: { type: [String], enum: ['Heritage Lover', 'Explorer', 'Researcher', 'Practitioner', 'Conservator', 'Artist'], default: null },    
+    persona: { type: [String], enum: ['Heritage Lover', 'Explorer', 'Researcher', 'Practitioner', 'Conservator', 'Artist'], default: [] },    
     otp: { type: String }, // Field to store the OTP temporarily
     otpExpires: { type: Date }, // Optional: Field to store OTP expiration time
     isVerified: { type: Boolean, default: false },
     contentPreferences: { type: [String], default: [] },
     followers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
     following: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
-    firebaseUID: { type: String, required: true, unique: true }
+    firebaseUID: { type: String, unique: true }
 
-});
+},  { collection: "users" });
 
 const User = mongoose.model('User', userSchema);
 

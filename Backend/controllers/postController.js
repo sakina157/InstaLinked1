@@ -1,5 +1,7 @@
 const Post = require("../models/post");
 
+
+
 // Create a new post
 const createPost = async (req, res) => {
   try {
@@ -22,4 +24,27 @@ const getPosts = async (req, res) => {
   }
 };
 
-module.exports = { createPost, getPosts };
+const getRandomPosts = async (req, res) => {
+  try {
+      const { userId } = req.params;
+
+      // Check if user exists
+      const userExists = await User.findById(userId);
+      if (!userExists) {
+          return res.status(404).json({ message: "User not found" });
+      }
+
+      // Fetch random 5-6 posts excluding the logged-in user's posts
+      const posts = await Post.aggregate([
+          { $match: { userId: { $ne: userId } } },
+          { $sample: { size: 6 } }
+      ]);
+
+      res.json(posts);
+  } catch (error) {
+      console.error("Error fetching random posts:", error);
+      res.status(500).json({ message: "Server error" });
+  }
+};
+
+module.exports = { createPost, getPosts, getRandomPosts };
