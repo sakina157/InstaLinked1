@@ -1,30 +1,34 @@
 const User = require("../models/user");
 
-const updateUsernameAndPersona = async (req, res) => {
-  try {
-    const { userId, username, persona } = req.body;
+const updateUsername = async (req, res) => {
+    try {
+        const { userId, username } = req.body;
 
-    if (!userId || !username || !persona) {
-      return res.status(400).json({ message: "All fields are required" });
+        if (!userId || !username) {
+            return res.status(400).json({ message: "User ID and username are required" });
+        }
+
+        // Case-insensitive check for existing username
+        const existingUser = await User.findOne({ username: { $regex: new RegExp("^" + username + "$", "i") } });
+        if (existingUser) {
+            return res.status(400).json({ message: "Username already taken" });
+        }
+
+        // Fetch the user by ID
+        const user = await User.findById(userId);
+        if (!user) return res.status(404).json({ message: "User not found" });
+
+        user.username = username;
+        await user.save();
+
+        res.status(200).json({ message: "Username updated successfully", username: user.username });
+    } catch (error) {
+        console.error("Error updating username:", error);
+        res.status(500).json({ message: "Server error", error });
     }
-
-    const existingUser = await User.findOne({ username });
-    if (existingUser) {
-      return res.status(400).json({ message: "Username already taken" });
-    }
-
-    const user = await User.findById(userId);
-    if (!user) return res.status(404).json({ message: "User not found" });
-
-    user.username = username;
-    user.persona = persona;
-    await user.save();
-
-    res.status(200).json({ message: "Profile updated successfully" });
-  } catch (error) {
-    res.status(500).json({ message: "Server error", error });
-  }
 };
+
+  
 
 // Follow a user
 const followUser = async (req, res) => {
@@ -119,7 +123,7 @@ const getUserProfile = async (req, res) => {
     }
 };
 
-module.exports = { updateUsernameAndPersona, followUser, unfollowUser, getUserProfile, getUser };
+module.exports = { updateUsername, followUser, unfollowUser, getUserProfile, getUser };
 
 
 

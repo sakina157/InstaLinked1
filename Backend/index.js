@@ -3,20 +3,16 @@ const dotenv = require('dotenv');
 const cors = require('cors');
 const connectDB = require('./database');
 const User = require('./models/user');
-const Post = require('./models/post');
+
 
 
 dotenv.config();
 const app = express();
 
-
-// ✅ Improved CORS Configuration
-const corsOptions = {
-  origin: '*',
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-};
-app.use(cors(corsOptions));
+app.use(cors({
+  credentials: true,
+  origin: "http://localhost:3000",
+}));
 
 // ✅ Middleware
 app.use(express.json());
@@ -38,13 +34,12 @@ const authRoutes = require('./routes/authRoutes');
 const feedRoutes = require("./routes/feed");
 const uploadRoutes = require("./routes/uploadRoutes");
 const userRoutes = require("./routes/userRoutes");
-const postRoutes = require("./routes/postRoutes");
-const reelRoutes = require("./routes/reelRoutes");
+const mediaRoutes = require("./routes/mediaRoutes");
 const commentRoutes = require("./routes/commentRoutes");
 const CreatePostRoute = require('./routes/CreatePostRoute');
-const homeSearchRoutes = require("./routes/homesearch");
+const homesearchRoutes = require("./routes/homesearch");
 const profileRoutes = require("./routes/profile");
-
+const usernameRoutes = require("./routes/username");
 
 
 // ✅ Debugging: Confirm Persona Route is Loaded
@@ -60,44 +55,12 @@ app.use('/api/auth', authRoutes);
 app.use("/api", feedRoutes);
 app.use("/api", uploadRoutes);
 app.use("/api/users", userRoutes);
-app.use("/api/posts", postRoutes);
-app.use("/api/reels", reelRoutes);
 app.use("/api/comments", commentRoutes);
 app.use('/api', CreatePostRoute);
-app.use("/api", homeSearchRoutes);
+app.use("/api", homesearchRoutes);
 app.use("/api", profileRoutes);
-
-
-
-// ✅ Create Post API
-app.post('/api/posts', async (req, res) => {
-  try {
-      console.log("📩 Received Post Data:", req.body);
-
-      const { userId, content, role, text, image } = req.body;
-
-      if (!userId || !content || !role || !text) {
-          return res.status(400).json({ error: "Missing required fields" });
-      }
-
-      const newPost = new Post({
-          userId,
-          content,
-          role,
-          text,
-          image,
-          likes: [],
-          comments: []
-      });
-
-      await newPost.save();
-      res.status(201).json({ message: "Post created successfully!", post: newPost });
-
-  } catch (error) {
-      console.error("❌ Error saving post:", error);
-      res.status(500).json({ error: "Server error" });
-  }
-});
+app.use("/api", usernameRoutes);
+app.use("/api/media", mediaRoutes);
 
 // ✅ Function to Delete Unverified Users
 const deleteUnverifiedUsers = async () => {
@@ -105,9 +68,9 @@ const deleteUnverifiedUsers = async () => {
     const now = Date.now();
     const deletedUsers = await User.deleteMany({
       isVerified: false,
-      createdAt: { $lt: new Date(now - 10 * 60 * 1000) } 
+      createdAt: { $lt: new Date(now - 10 * 60 * 1000) } // Delete users created more than 10 minutes ago
     });
-    
+
     if (deletedUsers.deletedCount > 0) {
       console.log(`🗑 Deleted ${deletedUsers.deletedCount} unverified users.`);
     }

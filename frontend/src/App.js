@@ -13,6 +13,7 @@ import CreatePost from "./components/CreatePost";
 import ViewProfile from "./components/ViewProfile";
 import CreateProfile from "./components/CreateProfile";
 import Navbar from "./components/Navbar";
+import HomeNavbar from "./components/HomeNavbar";
 
 
 function App() {
@@ -49,7 +50,7 @@ function App() {
         <Route path="/signup" element={<Signup />} />
         <Route path="/verify-otp" element={<OtpVerification />} />
         <Route path="/your-name" element={<NameSelection />} />
-        <Route path="/persona-selection" element={<PersonaSelection userEmail={user} />} />
+        <Route path="/persona-selection" element={<PersonaSelection />} />
         <Route path="/content-selection" element={<ContentSelection userEmail={user} />} />
         <Route path="/reset-password-request" element={<ResetPasswordRequest />} />
         <Route path="/reset-password/:token" element={<ResetPassword />} />
@@ -57,6 +58,7 @@ function App() {
         <Route path="/create-post" element={<CreatePost />} />
         <Route path="/profile/:userId" element={<ViewProfile />} />
         <Route path="/create-profile" element={<CreateProfile />} />
+        <Route path="/home-navbar" element={<HomeNavbar />} />
         
       </Routes>
     </Router>

@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
 import { useNavigate, useLocation } from 'react-router-dom';
+import logo from '../images/logo.svg';
+import { FaFileAlt, FaMusic, FaCamera, FaMicrophone, FaBook, FaFilePdf, FaFilm, FaVideo, FaPaintBrush, FaMonument, FaBuilding, FaLandmark, FaGlobe } from 'react-icons/fa';
 
 const ContentSelection = () => {
   const navigate = useNavigate();
@@ -12,22 +14,22 @@ const ContentSelection = () => {
   const [successMessage, setSuccessMessage] = useState('');
 
   const contentOptions = [
-    { name: 'Articles', icon: '📄' },
-    { name: 'Songs', icon: '🎵' },
-    { name: 'Photographs', icon: '📸' },
-    { name: 'Audio Stories', icon: '🎙️' },
-    { name: 'Text Stories', icon: '📜' },
-    { name: 'Research Papers', icon: '📚' },
-    { name: 'Short Videos', icon: '🎥' },
-    { name: 'Documented Videos', icon: '📂' },
-    { name: 'Music', icon: '🎶' },
-    { name: 'Art', icon: '🎨' },
-    { name: 'Sculptures', icon: '🗿' },
-    { name: 'Monuments', icon: '🏛️' },
-    { name: 'Buildings', icon: '🏢' },
-    { name: 'Folklores', icon: '📖' },
+    { name: 'Articles', icon: <FaFileAlt /> },
+    { name: 'Songs', icon: <FaMusic /> },
+    { name: 'Photographs', icon: <FaCamera /> },
+    { name: 'Audio Stories', icon: <FaMicrophone /> },
+    { name: 'Text Stories', icon: <FaBook /> },
+    { name: 'Research Papers', icon: <FaFilePdf /> },
+    { name: 'Short Videos', icon: <FaFilm /> },
+    { name: 'Documented Videos', icon: <FaVideo /> },
+    { name: 'Music', icon: <FaMusic /> },
+    { name: 'Art', icon: <FaPaintBrush /> },
+    { name: 'Sculptures', icon: <FaMonument /> },
+    { name: 'Monuments', icon: <FaLandmark /> },
+    { name: 'Buildings', icon: <FaBuilding /> },
+    { name: 'Folklores', icon: <FaGlobe /> },
   ];
-
+  
   const handleContentSelect = (content) => {
     setSelectedContent((prev) =>
       prev.includes(content) ? prev.filter((c) => c !== content) : [...prev, content]
@@ -68,7 +70,7 @@ const ContentSelection = () => {
   return (
     <PageWrapper>
       <Header>
-        <Logo>Instalinked</Logo>
+        <Logo src={logo} alt="InstaLinked Logo" />
         <Progress>Steps 3/3</Progress>
         <SkipButton onClick={() => navigate('/Login')}>Skip ➝</SkipButton>
       </Header>
@@ -84,7 +86,8 @@ const ContentSelection = () => {
               selected={selectedContent.includes(content.name)}
               onClick={() => handleContentSelect(content.name)}
             >
-              <Icon>{content.icon}</Icon>
+              <Icon selected={selectedContent.includes(content.name)}>
+                {content.icon}</Icon>
               <ContentName>{content.name}</ContentName>
             </ContentCard>
           ))}
@@ -124,7 +127,11 @@ const Header = styled.div`
   font-weight: bold;
 `;
 
-const Logo = styled.div`font-size: 20px;`;
+const Logo = styled.img`
+  width: 160px; /* Increased size */
+  height: 20vh;
+  object-fit: contain;
+`;
 const Progress = styled.div`font-size: 16px;`;
 const SkipButton = styled.button`
   background: none;
@@ -136,7 +143,7 @@ const SkipButton = styled.button`
 
 const MainContent = styled.div`
   position:relative;
-height:100%;
+  height:100%;
   text-align: center;
   gap:40px;
   padding: 40px;
@@ -163,7 +170,7 @@ const ContentGrid = styled.div`
   margin: auto;
 `;
 const ContentCard = styled.div`
-  background: ${(props) => (props.selected ?'#006D77' : 'white')};
+  background: ${(props) => (props.selected ?'#80b6bb' : 'white')};
   border-radius: 10px;
   padding: 20px;
   text-align: center;
@@ -178,8 +185,10 @@ const ContentCard = styled.div`
 const Icon = styled.div`
    font-size: 30px;
   margin-bottom: 10px;
-  color: ${(props) => (props.selected ? '#E5E5E5' : '#004d40')};
+  color: ${(props) => (props.selected ? 'white' : '#004d40')};
+  transition: color 0.3s ease;
 `;
+
 
 const ContentName = styled.h2`
   font-size: 18px;

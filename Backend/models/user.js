@@ -17,9 +17,10 @@ const userSchema = new mongoose.Schema({
     otp: { type: String }, // Field to store the OTP temporarily
     otpExpires: { type: Date }, // Optional: Field to store OTP expiration time
     isVerified: { type: Boolean, default: false },
-    contentPreferences: { type: [String], default: [] },
+    preferences: { type: [String], default: [] },
     followers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
     following: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+    preferences: [{ type: String }],
     firebaseUID: { type: String, unique: true }
 
 },  { collection: "users" });

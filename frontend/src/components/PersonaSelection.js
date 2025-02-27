@@ -3,6 +3,7 @@ import styled from 'styled-components';
 import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { FaUniversity, FaGlobe, FaFlask, FaTools, FaHeart, FaPalette } from 'react-icons/fa';
+import logo from '../images/logo.svg';
 
 
 const PersonaSelection = () => {
@@ -11,7 +12,7 @@ const PersonaSelection = () => {
   const [errorMessage, setErrorMessage] = useState('');
   const location = useLocation();
   const userEmail = location.state?.email || localStorage.getItem('userEmail');
-  const Name = location.state?.name;
+  const username = location.state?.username;
 
   const personas = [
     { name: 'Heritage Lover', icon: <FaUniversity /> },
@@ -32,28 +33,43 @@ const PersonaSelection = () => {
   };
 
   const handleSubmit = async () => {
-    console.log(Name,userEmail)
+    console.log("Submitting persona:", { email: userEmail, persona: selectedPersonas, username });
+  
     if (!userEmail) {
-      setErrorMessage('User email is missing! Please log in again.');
+      setErrorMessage("User email is missing! Please log in again.");
       return;
     }
+  
     if (selectedPersonas.length === 0) {
-      setErrorMessage('Please select at least one persona.');
+      setErrorMessage("Please select at least one persona.");
       return;
     }
+  
     try {
-      await axios.post('http://localhost:5500/api/persona', { email: userEmail, persona: selectedPersonas, fullName: Name });
+      const response = await axios.post("http://localhost:5500/api/persona", {
+        email: userEmail,
+        persona: selectedPersonas,
+        username,
+      });
 
-      navigate('/content-selection', { state: { email: userEmail } });
+  
+      console.log("Persona submission response:", response.data);
+  
+      if (response.status === 200) {
+        navigate("/content-selection", { state: { email: userEmail } });
+      } else {
+        setErrorMessage( "Something went wrong.");
+      }
     } catch (error) {
-      setErrorMessage('Something went wrong.');
+      setErrorMessage("Something went wrong.");
+      console.error(error);
     }
   };
 
   return (
     <Container>
       <Header>
-        <Logo>InstaLinked</Logo>
+        <Logo src={logo} alt="InstaLinked Logo" />
         <Progress>Steps 2/3</Progress>
         <SkipButton onClick={() => navigate('/content-selection')}>Skip ➝</SkipButton>
       </Header>
@@ -111,7 +127,11 @@ const Header = styled.div`
   font-weight: bold;
 `;
 
-const Logo = styled.div`font-size: 20px;`;
+const Logo = styled.img`
+  width: 160px; /* Increased size */
+  height: 20vh;
+  object-fit: contain;
+`;
 const Progress = styled.div`font-size: 16px;`;
 const SkipButton = styled.button`
   background: none;
@@ -150,7 +170,7 @@ const PersonaGrid = styled.div`
 `;
 
 const PersonaCard = styled.div`
-  background: ${(props) => (props.selected ?'#006D77' : 'white')};
+  background: ${(props) => (props.selected ?'#80b6bb' : 'white')};
   border-radius: 10px;
   padding: 20px;
   text-align: center;

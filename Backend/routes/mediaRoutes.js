@@ -1,70 +1,102 @@
+/* eslint-disable no-unused-vars */
 const express = require("express");
 const mongoose = require("mongoose");
 const Post = require("../models/post");
-const User = require("../models/user"); // ✅ Added missing User model import
-const upload = require("../middlewares/upload");
+const User = require("../models/user");
+const multer = require("multer");
+const cloudinary = require("cloudinary").v2;
+
+// Configure Cloudinary
+cloudinary.config({
+    cloud_name: process.env.CLOUD_NAME,
+    api_key: process.env.API_KEY,
+    api_secret: process.env.API_SECRET,
+  });
+  
+  // Configure Multer for file uploads
+  const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+      cb(null, "uploads/"); // Save uploaded files to the "uploads" folder
+    },
+    filename: function (req, file, cb) {
+      cb(null, Date.now() + "-" + file.originalname); // Unique filename
+    },
+  });
+  
+  const upload = multer({ storage: storage });
+
 
 const router = express.Router();
 
-/* 🚀 ✅ CREATE A NEW POST (Handles Text & Image Uploads) */
-router.post("/create", upload.single("image"), async (req, res) => {
+/* 🚀 ✅ CREATE A NEW MEDIA (Handles Text & Media Uploads) */
+router.post("/create", upload.single("media"), async (req, res) => {
     try {
         console.log("📩 Received data:", req.body);
         console.log("🖼️ Uploaded file:", req.file);
 
-        const { userEmail, text, category } = req.body;
-        const image = req.file ? req.file.path : null; // ✅ Cloudinary image URL
+        const { userEmail, text, category, mediaType } = req.body;
+        let mediaUrl = null;
+        if (req.file) {
+    // Upload the file to Cloudinary
+    const result = await cloudinary.uploader.upload(req.file.path);
+    mediaUrl = result.secure_url; // ✅ Cloudinary URL
 
+    // Optionally, delete the local file after uploading to Cloudinary
+    const fs = require("fs");
+    fs.unlinkSync(req.file.path); // Delete the local file
+}
         const newPost = new Post({
             userEmail,
             text,
-            image,
+            mediaUrl,
+            mediaType, // Can be "image", "video", "audio", "pdf", "documentary"
             category,
             likes: [],
             comments: [],
         });
 
         await newPost.save();
-        res.status(201).json({ message: "✅ Post created successfully", post: newPost });
+        res.status(201).json({ message: "✅ Media created successfully", post: newPost });
     } catch (error) {
-        console.error("❌ Error creating post:", error);
-        res.status(500).json({ message: "Error creating post", error });
+        console.error("❌ Error creating media:", error);
+        res.status(500).json({ message: "Error creating media", error });
     }
 });
 
-/* 🚀 ✅ GET ALL POSTS (Including Images) */
+/* 🚀 ✅ GET ALL MEDIA (Including Images, Videos, Audio, PDFs, Documentaries) */
 router.get("/all", async (req, res) => {
+    console.log(req);
     try {
         const posts = await Post.find().sort({ createdAt: -1 });
         res.status(200).json(posts);
     } catch (error) {
-        res.status(500).json({ message: "❌ Error fetching posts", error });
+        res.status(500).json({ message: "❌ Error fetching media", error });
     }
 });
 
-/* 🚀 ✅ GET POSTS BY USER EMAIL */
+/* 🚀 ✅ GET MEDIA BY USER EMAIL */
 router.get("/user/:email", async (req, res) => {
     try {
         const posts = await Post.find({ userEmail: req.params.email }).sort({ createdAt: -1 });
         res.status(200).json(posts);
     } catch (error) {
-        res.status(500).json({ message: "❌ Error fetching user's posts", error });
+        res.status(500).json({ message: "❌ Error fetching user's media", error });
     }
 });
 
-/* 🚀 ✅ DELETE A POST */
+/* 🚀 ✅ DELETE A MEDIA */
 router.delete("/delete/:postId", async (req, res) => {
     try {
         const { postId } = req.params;
         await Post.findByIdAndDelete(postId);
-        res.status(200).json({ message: "✅ Post deleted successfully" });
+        res.status(200).json({ message: "✅ Media deleted successfully" });
     } catch (error) {
-        res.status(500).json({ message: "❌ Error deleting post", error });
+        res.status(500).json({ message: "❌ Error deleting media", error });
     }
 });
 
-/* 🚀 ✅ FETCH RANDOM POSTS (Excluding Followed Users) */
-router.get("/random-posts/:userId", async (req, res) => {
+/* 🚀 ✅ FETCH RANDOM MEDIA (Excluding Followed Users) */
+router.get("/random-media/:userId", async (req, res) => {
     try {
         const { userId } = req.params;
         const user = await User.findById(userId);
@@ -73,26 +105,26 @@ router.get("/random-posts/:userId", async (req, res) => {
             return res.status(404).json({ message: "❌ User not found" });
         }
 
-        // Fetch 5-6 random posts, excluding followed users
+        // Fetch 5-6 random media, excluding followed users
         const randomPosts = await Post.aggregate([
             { $match: { userEmail: { $ne: userId, $nin: user.following } } }, // Exclude followed users
-            { $sample: { size: 6 } }, // Get 6 random posts
+            { $sample: { size: 10 } }, // Get 6 random media
         ]);
 
         res.status(200).json(randomPosts);
     } catch (error) {
-        console.error("❌ Error fetching random posts:", error);
+        console.error("❌ Error fetching random media:", error);
         res.status(500).json({ message: "Server error", error });
     }
 });
 
-/* 🚀 ✅ LIKE/UNLIKE A POST */
+/* 🚀 ✅ LIKE/UNLIKE A MEDIA */
 router.post("/like/:postId", async (req, res) => {
     try {
         const { userId } = req.body;
         const post = await Post.findById(req.params.postId);
 
-        if (!post) return res.status(404).json({ message: "❌ Post not found" });
+        if (!post) return res.status(404).json({ message: "❌ Media not found" });
 
         const userObjectId = new mongoose.Types.ObjectId(userId);
 
@@ -110,13 +142,13 @@ router.post("/like/:postId", async (req, res) => {
     }
 });
 
-/* 🚀 ✅ COMMENT ON A POST */
+/* 🚀 ✅ COMMENT ON A MEDIA */
 router.post("/comment/:postId", async (req, res) => {
     try {
         const { userId, text } = req.body;
         const post = await Post.findById(req.params.postId);
 
-        if (!post) return res.status(404).json({ message: "❌ Post not found" });
+        if (!post) return res.status(404).json({ message: "❌ Media not found" });
 
         const newComment = {
             userId: new mongoose.Types.ObjectId(userId),

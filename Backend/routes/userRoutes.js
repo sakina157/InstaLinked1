@@ -1,11 +1,10 @@
 const express = require("express");
-const { updateUsernameAndPersona, followUser, unfollowUser, getUserProfile, getUser } = require("../controllers/userController");
-const mongoose = require("mongoose");
+const { updateUsername, followUser, unfollowUser, getUserProfile, getUser } = require("../controllers/userController");
 const User = require("../models/user");
 
 const router = express.Router();
 
-router.post("/update-profile", updateUsernameAndPersona);
+router.post("/update-username", updateUsername);
 router.post("/follow", followUser);
 router.post("/unfollow", unfollowUser);
 

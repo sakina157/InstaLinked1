@@ -31,20 +31,20 @@ const NameSelection = () => {
   
     username = username.trim();
     console.log("✅ Trimmed username:", username);
-
+  
     if (!username) {
       setError("Invalid username. Please enter a valid name.");
       return;
     }
-
+  
     setLoading(true);
     try {
       const response = await axios.get(
         `http://localhost:5500/api/check-username/${encodeURIComponent(username)}`
       );
-
+  
       console.log("Username Check Response:", response.data); // Debugging
-
+  
       if (response.data.exists) {
         setIsAvailable(false);
         setError("Username already exists. Please choose a different name.");
@@ -53,47 +53,57 @@ const NameSelection = () => {
         setError(""); // Reset error if available
       }
     } catch (err) {
-      setError("Error checking username. Please try again.");
+      // Handle specific error messages from the backend
+      if (err.response && err.response.data.error) {
+        setError(err.response.data.error);
+      } else {
+        setError("Error checking username. Please try again.");
+      }
       console.error("Username check error:", err);
     }
     setLoading(false);
-};
-
+  };
 
   // ✅ Handle username submission
   const handleSubmit = async () => {
-    if (!username.trim()) {
-        setError("Please enter a username.");
-        return;
+  if (!username.trim()) {
+    setError("Please enter a username.");
+    return;
+  }
+
+  if (!isAvailable) {
+    setError("Username is already taken. Choose another one.");
+    return;
+  }
+
+  console.log("Sending request:", { username, email });
+
+  setLoading(true);
+  try {
+    const saveResponse = await axios.post(
+      "http://localhost:5500/api/set-username",
+      { username, email }
+    );
+
+    if (saveResponse.status === 200) {
+      // ✅ Store username in LocalStorage
+      localStorage.setItem("userUsername", username);
+
+      // ✅ Navigate to Persona Selection
+      navigate("/persona-selection", { state: { email, username } });
+    } else {
+      setError("Failed to save username. Please try again.");
     }
-
-    if (!isAvailable) {
-        setError("Username is already taken. Choose another one.");
-        return;
+  } catch (err) {
+    // Handle specific error messages from the backend
+    if (err.response && err.response.data.message) {
+      setError(err.response.data.message);
+    } else {
+      setError("Something went wrong. Please try again.");
     }
-    console.log("Sending request:", { username, email }); 
-
-    setLoading(true);
-    try {
-        const saveResponse = await axios.post(
-            "http://localhost:5500/api/set-username",
-            { username, email }
-        );
-
-        if (saveResponse.status === 200) {
-            // ✅ Store username in LocalStorage
-            localStorage.setItem("userUsername", username);
-
-            // ✅ Navigate to Persona Selection
-            navigate("/persona-selection", { state: { email, username } });
-        } else {
-            setError("Failed to save username. Please try again.");
-        }
-    } catch (err) {
-        setError("Something went wrong. Please try again.");
-        console.error("Error setting username:", err);
-    }
-    setLoading(false);
+    console.error("Error setting username:", err);
+  }
+  setLoading(false);
 };
 
 

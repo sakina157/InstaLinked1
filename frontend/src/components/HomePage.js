@@ -1,22 +1,11 @@
 import React, { useEffect, useState, useCallback } from "react";
 import axios from "axios";
-import { FaHome, FaPlusCircle, FaBell, FaEnvelope, FaCog,FaWpexplorer } from "react-icons/fa";
+import { useNavigate } from 'react-router-dom';
 import default_user from '../images/default_user.jpg'
-import logo from "../images/logo.svg"
-import { Link, useNavigate } from 'react-router-dom';
-
-
+import HomeNavbar from "./HomeNavbar";
 
 // Reusable Post Component
-const Post = ({ post, onLike }) => {
-  const [liked, setLiked] = useState(post.likes.includes(post.userEmail));
-
-
-  const handleLike = () => {
-    setLiked(!liked);
-    onLike(post._id);
-  };
-
+const Post = ({ post }) => {
   return (
     <div style={styles.postCard}>
       <div style={styles.postHeader}>
@@ -28,76 +17,55 @@ const Post = ({ post, onLike }) => {
       </div>
       <p style={styles.postText}>{post.text}</p>
       {post.mediaUrl && (
-        post.mediaUrl.includes("video") ? (
+        post.mediaType === "video" ? (
           <video controls width="100%" style={styles.postMedia}>
             <source src={post.mediaUrl} type="video/mp4" />
           </video>
+        ) : post.mediaType === "pdf" ? (
+          <iframe
+            src={post.mediaUrl}
+            width="100%"
+            height="500px"
+            style={styles.postMedia}
+            title="PDF Viewer"
+          />
+        ) : post.mediaType === "audio" ? (
+          <audio controls style={styles.postMedia}>
+            <source src={post.mediaUrl} type="audio/mpeg" />
+          </audio>
         ) : (
           <img src={post.mediaUrl} alt="Post" style={styles.postMedia} />
         )
       )}
+      <p style={styles.postText}>{post.text}</p>
+      <p style={styles.category}>{post.category}</p> {/* Display category */}
       <div style={styles.postActions}>
-        <button style={styles.actionButton} onClick={handleLike}>
-          👍 {post.likes.length}
-        </button>
-        <button style={styles.actionButton}>💬 {post.comments.length}</button>
-        <button style={styles.actionButton}>🔗 Share</button>
-      </div>
-    </div>
-  );
-};
-
-
-// Reusable Reel Component
-const Reel = ({ reel, onLike }) => {
-  const [liked, setLiked] = useState(reel.likes.includes(reel.userEmail));
-
-  const handleLike = () => {
-    setLiked(!liked);
-    onLike(reel._id);
-  };
-
-  return (
-    <div style={styles.reelCard}>
-      <div style={styles.reelHeader}>
-        <span style={styles.avatar}>👤</span>
-        <div>
-          <strong>{reel.userEmail}</strong>
-          <p style={styles.role}>{reel.role} • {reel.time}</p>
-        </div>
-      </div>
-      <video src={reel.videoUrl} controls style={styles.reelVideo} />
-      <div style={styles.reelActions}>
-        <button style={styles.actionButton} onClick={handleLike}>
-          👍 {reel.likes.length}
-        </button>
-        <button style={styles.actionButton}>💬 {reel.comments.length}</button>
-        <button style={styles.actionButton}>🔗 Share</button>
+        <button style={styles.actionButton}>❤️ Like</button>
+        <button style={styles.actionButton}>💬 Comment</button>
+        <button style={styles.actionButton}>➕ Follow</button>
       </div>
     </div>
   );
 };
 
 const HomePage = () => {
+  
   const storedUser = JSON.parse(localStorage.getItem("user")) || {};
-  const user = storedUser._id ? storedUser : null; 
   const navigate = useNavigate();
   const [username, setUsername] = useState(storedUser.username || "Loading...");
   const [profileImage, setProfileImage] = useState(storedUser.profileImage || default_user);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState([]);
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useState(1); 
 
   // ✅ Get email from LocalStorage
   const userEmail = localStorage.getItem("email");
 
- 
-
   const fetchUserData = useCallback(async () => {
+    console.log("Fetching user data for email:", userEmail);
     try {
-      const response = await axios.get("http://localhost:5000/api/user/data", {
+      const response = await axios.get("http://localhost:5500/api/user/data", {
+        params: { email: userEmail },
         withCredentials: true, // Ensure cookies are sent
       });
 
@@ -114,161 +82,72 @@ const HomePage = () => {
     } catch (error) {
       console.error("Error fetching user data:", error);
     }
-  }, []); 
+  }, [userEmail]); 
+  
   
 // Call fetchUserData on mount
 useEffect(() => {
   fetchUserData();  // ✅ Call function inside useEffect
 }, [fetchUserData]);  // ✅ Empty dependency array
 
-  // ✅ Search users
-  const handleSearch = async () => {
-    if (!searchQuery.trim()) return;
-    setLoading(true);
-    try {
-      const response = await axios.get(`http://localhost:5500/api/search?q=${searchQuery}`);
-      console.log("Search Results:", response.data);
-      setSearchResults(response.data);
-    } catch (error) {
-      console.error("Error searching users:", error);
-    }
-    setLoading(false);
-  };
+const fetchRandomPosts = useCallback(async () => {
+  try {
+    const response = await axios.get(`http://localhost:5500/api/random-media/${storedUser._id}`);
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching random posts:", error);
+    return [];
+  }
+}, [storedUser._id]);
   
-
-
-
   // Fetch feed data
   const fetchFeed = useCallback(async () => {
     if (!userEmail) return;
     setLoading(true);
     try {
-      const response = await axios.get(`http://localhost:5500/api/feed?email=${userEmail}&page=${page}`);
-      setPosts((prev) => [...prev, ...response.data]);
-      setPage((prev) => prev + 1);
+      const [personalizedResponse, randomPosts] = await Promise.all([
+        axios.get(`http://localhost:5500/api/feed?email=${userEmail}&page=${page}`),
+        fetchRandomPosts(),
+      ]);
+  
+      const combinedPosts = [...personalizedResponse.data, ...randomPosts];
+      const uniquePosts = Array.from(new Set(combinedPosts.map((post) => post._id)))
+        .map((id) => combinedPosts.find((post) => post._id === id));
+  
+      setPosts(uniquePosts);
     } catch (error) {
       console.error("Error fetching posts:", error);
     } finally {
       setLoading(false);
     }
-  }, [page, userEmail]);
+  }, [userEmail, fetchRandomPosts, page]);
 
-  // Fetch feed on component mount
-  useEffect(() => {
-    const fetchPosts = async () => {
-      try {
-        const response = await fetch("http://localhost:5500/api/posts");
-        const data = await response.json();
-        console.log("Fetched posts:", data); // Debugging
-        setPosts(data);
-      } catch (error) {
-        console.error("Error fetching posts:", error);
-      }
-    };
-  
-    fetchPosts();
-  }, []);
-  
   // Handle infinite scroll
   const handleScroll = useCallback(() => {
     if (
-      window.innerHeight + document.documentElement.scrollTop ===
-      document.documentElement.offsetHeight
+      window.innerHeight + document.documentElement.scrollTop >=
+      document.documentElement.offsetHeight - 100 // Load more posts before reaching the bottom
     ) {
-      fetchFeed();
+      setPage((prevPage) => prevPage + 1); // Increment page for pagination
     }
-  }, [fetchFeed]);
+  }, []);
 
   // Add scroll event listener
   useEffect(() => {
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, [handleScroll]);
-
-  // Handle like
-  const handleLike = async (postId) => {
-    if (!userEmail) return;
-    try {
-      await axios.post(`http://localhost:5500/api/like/${postId}`, { email: userEmail });
-      setPosts(posts.map(post =>
-        post._id === postId
-          ? { ...post, likes: post.likes.includes(userEmail) ? post.likes.filter(like => like !== userEmail) : [...post.likes, userEmail] }
-          : post
-      ));
-    } catch (error) {
-      console.error("Error liking post:", error);
-    }
-  };
-
   
+  useEffect(() => {
+    fetchFeed();
+  }, [fetchFeed]);
 
   return (
+    <>
+    <HomeNavbar /> 
     <div style={styles.container}>
-      <nav style={styles.navbarContainer}>
-      <div style={styles.leftSection}>
-      <img src={logo} alt="InstaLinked" style={styles.logo} />
-
-                {/* Search Bar */}
-        <div style={styles.searchContainer}>
-          <input
-            type="text"
-            placeholder="Search users..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            style={styles.searchInput}
-          />
-          <button onClick={handleSearch} style={styles.searchButton}>Search</button>
-        </div>
-
-        {/* Right Section */}
-    <div style={styles.rightSection}>
-      <a href="/Home" style={styles.navIcon}><FaHome /></a>
-      <a href="/explore-page" style={styles.navIcon}><FaWpexplorer /></a>
-      <a href="/create-post" style={styles.navIcon}><FaPlusCircle /></a>
-      <div style={styles.navIcon}>
-        <FaBell />
-        {/* <span style={styles.notificationBadge}>12</span> */}
-      </div>
-      <a href="/messages" style={styles.navIcon}><FaEnvelope /></a>
-      <Link to={`/profile/${user?._id || ""}`} style={styles.navIcon}>
-      <img src={profileImage} alt="User Profile" style={styles.profileImage} />
-    </Link>
-  
-      <a href="/settings" style={styles.navIcon}><FaCog /></a>
-    </div>
-  </div>
-
-      </nav>
-
-                {/* Search Results */}
-
-{!loading && searchResults.length > 0 && (
-  <ul style={styles.searchResultsContainer}>
-    {searchResults.map(user => (
-      <li key={user._id} style={styles.searchItem}>
-      <div style={styles.profileContainer}>
-        <img
-          src={user.profilePicture || "default_user.jpg"}
-          alt="Profile"
-          style={styles.avatar}
-        />
-        <span style={styles.username}>{user.username || user.email}</span>
-      </div>
-      <button
-        style={styles.viewProfileButton}
-        onClick={() => navigate(`/profile/${user._id}`)}
-      >
-        View Profile
-      </button>
-    </li>
-  ))}
-</ul>
-)}
       
-
-               
-    
-
+      
       {/* Profile Section */}
       
       <div style={styles.profileSection}>
@@ -323,25 +202,20 @@ useEffect(() => {
         </div>
 
         {/* Feed Section */}
-        <div style={styles.content}>
         <div style={styles.feed}>
-          <div style={styles.profileComplete}>
-            <p><strong>Complete Your Profile</strong></p>
-            <p>Personalize your experience and connect better with the community</p>
-            <button style={styles.completeButton}>Complete</button>
-          </div>
+            <div style={styles.profileComplete}>
+              <p><strong>Complete Your Profile</strong></p>
+              <p>Personalize your experience and connect better with the community</p>
+              <button style={styles.completeButton}>Complete</button>
+            </div>
 
-          {loading ? (
-            <p>Loading posts...</p>
-          ) : (
-            posts.map((post) =>
-              post.type === "post" ? (
-                <Post key={post._id} post={post} onLike={handleLike} />
-              ) : (
-                <Reel key={post._id} reel={post} onLike={handleLike} />
-              )
-            )
-          )}
+            {loading ? (
+              <p>Loading posts...</p>
+            ) : (
+              posts.map((post) => (
+                <Post key={post._id} post={post} />
+              ))
+            )}
           </div>
 
         {/* Right Sidebar */}
@@ -349,7 +223,7 @@ useEffect(() => {
       </div>
     </div>
     
-    </div>
+    </>
   );
 
 };
@@ -360,126 +234,7 @@ const styles = {
     fontFamily: "Arial, sans-serif",
     backgroundColor: "#f4f2ee",
   },
-  navbarContainer: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: "#006d77",
-    padding: "10px 20px",
-    color: "#ffffff",
-    width: "100%",
-    height:"8vh"
-  },
-  leftSection: {
-    display: "flex",
-    alignItems: "center",
-    gap: "15px",
-    flex: 0.98,
-  },
-  logo: {
-    width: "120px",  // ✅ Adjust size as needed
-    height: "100%",
-    position:"relative",
-  },
-  searchContainer: {
-    display: "flex",
-    padding: "8px",
-    alignItems: "center", 
-    borderRadius: "5px",
-    border: "none",
-    width: "250px",
-    gap: "4px", 
-  },
-  searchInput: {
-    padding: "5px",
-    borderRadius: "4px",
-    width: "210px",
-  },
-  searchButton: {
-    marginRight: "5px",
-    padding: "5px 10px",
-  },
-  rightSection: {
-    display: "flex",
-    alignItems: "center",
-    gap: "20px",
-    marginLeft: "auto", // Push icons to the right
-    justifyContent: "flex-end",
-    flexShrink: 0,
-  },
-  navIcon: {
-    color: "white",
-    fontSize: "24px",
-    cursor: "pointer",
-    textDecoration: "none",
-    position: "relative",
-  },
-  profileImage: {
-    height: "30px",
-    width: "30px",
-    borderRadius: "50%",
-    objectFit: "cover",
-    border: "2px solid white",
-    cursor: "pointer",
-  },
-  notificationBadge: {
-    position: "absolute",
-    top: "-5px",
-    right: "-8px",
-    backgroundColor: "red",
-    color: "white",
-    fontSize: "12px",
-    borderRadius: "50%",
-    padding: "2px 6px",
-  },
-
-  searchResultsContainer: {
-    position: "absolute",
-    top: "50px", // Adjust based on Navbar height
-    left: "50%",
-    transform: "translateX(-50%)",
-    backgroundColor: "white",
-    padding: "10px",
-    borderRadius: "5px",
-    boxShadow: "0px 2px 5px rgba(0, 0, 0, 0.2)",
-    width: "300px",
-    zIndex: 1000,
-  },
-  searchItem: {
-    display: "flex",
-    justifyContent: "space-between",
-    padding: "5px 0",
-  },
-  loadingContainer: {
-    position: "relative",
-    bottom: "20px",
-    left: "50%",
-    transform: "translateX(-50%)",
-    backgroundColor: "rgba(255, 255, 255, 0.8)",
-    padding: "8px 16px",
-    borderRadius: "5px",
-    fontWeight: "bold",
-    boxShadow: "0px 2px 5px rgba(0, 0, 0, 0.2)",
-  },
   
-  profileContainer: {
-    display: "flex",
-    alignItems: "center", // Aligns profile image and username horizontally
-    gap: "10px", // Adds space between image and text
-  },
-  
-
-  viewProfileButton: {
-    backgroundColor: "#007bff",
-    color: "white",
-    border: "none",
-    padding: "3px 8px",
-    cursor: "pointer",
-  },
-  icons: {
-    display: "flex",
-    gap: "15px",
-  },
   profileSection: {
     backgroundColor: "#80b6bb",
     padding: "15px",
@@ -545,6 +300,7 @@ const styles = {
   },
   feed: {
     flex: 1,
+    
   },
   profileComplete: {
     backgroundColor: "#ffffff",
@@ -559,6 +315,12 @@ const styles = {
     border: "none",
     borderRadius: "5px",
     cursor: "pointer",
+  },
+  postGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
+    gap: "20px",
+    marginTop: "20px",
   },
   postCard: {
     backgroundColor: "#ffffff",
@@ -589,6 +351,15 @@ const styles = {
     border: "none",
     backgroundColor: "transparent",
     cursor: "pointer",
+  },
+  postMedia: {
+    width: "100%",
+    marginTop: "10px",
+  },
+  category: {
+    marginTop: "10px",
+    fontSize: "12px",
+    color: "#666",
   },
   rightSidebar: {
     width: "220px",

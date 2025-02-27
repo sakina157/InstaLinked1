@@ -2,14 +2,18 @@ const mongoose = require("mongoose");
 
 const postSchema = new mongoose.Schema({
 
-  userId: { type: String, required: true }, 
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true}, 
   content: { type: String, required: true },
   role: { type: String, required: true },
   author: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
   createdAt: { type: Date, default: Date.now },
-  time: { type: Date, default: Date.now }, // Store actual timestamp
   text: { type: String, required: true },
   image: { type: String, required: true }, // Cloudinary image URL
+  videoUrl: { type: String, required: true }, // Cloudinary URL for the post’s video
+  pdfUrl: { type: String, required: true }, // Cloudinary URL for the post’s PDF
+  audioUrl: { type: String, required: true },
+  mediaType: { type: String, enum: ["image", "video", "pdf", "audio"], required: true }, // Add this field
+  category: { type: String, required: true },
   likes: {type: Array, default: []}, 
   comments:  { type: Array, default: []},
   user_email: {
@@ -17,44 +21,6 @@ const postSchema = new mongoose.Schema({
     required: true,
     ref: 'User',
   },
-  posts: [
-    {
-      url: {
-        type: String, // URL for image/video/article
-        required: true,
-      },
-      caption: {
-        type: String, // Caption for the post
-        default: '',
-      },
-      content_type: {
-        type: String, // Type of content (e.g., 'image', 'video', 'article')
-        required: true,
-         // Valid content types
-      },
-      category:{
-        type:String,
-        required:true,
-        default:'',
-      },
-      hashtags:{
-        type:String,
-        default:'',
-      },
-      tags:{
-        type:String,
-        default:'',
-      },
-      visibility:{
-        type:String,
-        default:'',
-      },
-      created_at: {
-        type: Date, // Timestamp for when the post was created
-        default: Date.now,
-      },
-    },
-  ],
      
     
   
