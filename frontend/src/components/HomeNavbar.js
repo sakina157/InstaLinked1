@@ -4,15 +4,18 @@ import axios from 'axios';
 import { Link, useNavigate } from 'react-router-dom';
 import default_user from '../images/default_user.jpg'
 import logo from "../images/logo.svg"
+import { useSocket } from '../context/SocketContext';
+import Notification from './Notification';
 
 const Navbar = () => {
     const storedUser = JSON.parse(localStorage.getItem("user")) || {};
-
+    const { unreadCount } = useSocket();
+    const [showNotifications, setShowNotifications] = useState(false);
     const [profileImage] = useState(storedUser.profileImage || default_user);
     const user = storedUser._id ? storedUser : null; 
     const [searchQuery, setSearchQuery] = useState("");
     const [searchResults, setSearchResults] = useState([]);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
 
     
@@ -27,14 +30,34 @@ const Navbar = () => {
       setLoading(true);
       console.log("Searching for:", searchQuery);
       try {
-          const response = await axios.get(`http://localhost:5500/api/search?q=${searchQuery}`);
+          // Encode the search query to handle special characters
+          const encodedQuery = encodeURIComponent(searchQuery.trim());
+          const response = await axios.get(`http://localhost:5500/api/homesearch/search?q=${encodedQuery}`, {
+            withCredentials: true // Add this to handle cookies if needed
+          });
           console.log("Search Results:", response.data);
-          setSearchResults(response.data);
+          setSearchResults(Array.isArray(response.data) ? response.data : []);
       } catch (error) {
           console.error("Error searching users:", error);
+          setSearchResults([]); // Clear results on error
       } finally {
           setLoading(false);
       }
+  };
+  
+  // Debounce search to prevent too many API calls
+  const handleSearchInputChange = (e) => {
+    setSearchQuery(e.target.value);
+    if (!e.target.value.trim()) {
+      setSearchResults([]);
+      return;
+    }
+    // Add small delay before searching
+    setTimeout(() => {
+      if (e.target.value === searchQuery) {
+        handleSearch();
+      }
+    }, 300);
   };
 
  return (
@@ -49,7 +72,7 @@ const Navbar = () => {
             type="text"
             placeholder="Search users..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={handleSearchInputChange}
             style={styles.searchInput}
           />
           <button onClick={handleSearch} style={styles.searchButton}>Search</button>
@@ -60,9 +83,9 @@ const Navbar = () => {
       <a href="/Home" style={styles.navIcon}><FaHome /></a>
       <a href="/explore-page" style={styles.navIcon}><FaWpexplorer /></a>
       <a href="/create-post" style={styles.navIcon}><FaPlusCircle /></a>
-      <div style={styles.navIcon}>
+      <div style={styles.navIcon} onClick={() => setShowNotifications(true)}>
         <FaBell />
-        {/* <span style={styles.notificationBadge}>12</span> */}
+        {unreadCount > 0 && <span style={styles.notificationBadge}>{unreadCount}</span>}
       </div>
       <a href="/messages" style={styles.navIcon}><FaEnvelope /></a>
       <Link to={`/profile/${user?._id || ""}`} style={styles.navIcon}>
@@ -76,17 +99,11 @@ const Navbar = () => {
       </nav>
 
                 {/* Search Results */}
-
-                {!loading && searchResults.length > 0 && (
+                {searchQuery.trim() && !loading && searchResults.length > 0 && (
   <ul style={styles.searchResultsContainer}>
     {searchResults.map(user => (
       <li key={user._id} style={styles.searchItem}>
       <div style={styles.profileContainer}>
-        <img
-          src={user.profilePicture || "default_user.jpg"}
-          alt="Profile"
-          style={styles.avatar}
-        />
         <span style={styles.username}>{user.username || user.email}</span>
       </div>
       <button
@@ -99,6 +116,12 @@ const Navbar = () => {
   ))}
 </ul>
 )}
+
+      {/* Notification Modal */}
+      <Notification 
+        show={showNotifications} 
+        onClose={() => setShowNotifications(false)} 
+      />
 
 </div>
  );
@@ -136,17 +159,22 @@ const styles = {
         alignItems: "center", 
         borderRadius: "5px",
         border: "none",
-        width: "250px",
+        width: "400px",
         gap: "4px", 
       },
       searchInput: {
-        padding: "5px",
+        padding: "8px",
         borderRadius: "4px",
-        width: "210px",
+        width: "350px",
+        fontSize: "14px",
       },
       searchButton: {
         marginRight: "5px",
-        padding: "5px 10px",
+        padding: "8px 15px",
+        backgroundColor: "#ffffff",
+        border: "none",
+        borderRadius: "4px",
+        cursor: "pointer",
       },
       rightSection: {
         display: "flex",
@@ -184,14 +212,14 @@ const styles = {
     
       searchResultsContainer: {
         position: "absolute",
-        top: "50px", // Adjust based on Navbar height
-        left: "50%",
-        transform: "translateX(-50%)",
+        top: "60px",
+        left: "220px",
+        transform: "none",
         backgroundColor: "white",
         padding: "10px",
         borderRadius: "5px",
         boxShadow: "0px 2px 5px rgba(0, 0, 0, 0.2)",
-        width: "300px",
+        width: "400px",
         zIndex: 1000,
       },
       searchItem: {

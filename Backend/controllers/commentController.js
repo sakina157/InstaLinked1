@@ -1,5 +1,5 @@
 const Post = require("../models/post");
-const Reel = require("../models/Reel");
+
 
 // Add comment to a post
 const addCommentToPost = async (req, res) => {

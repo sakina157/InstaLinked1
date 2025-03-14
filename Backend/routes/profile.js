@@ -2,10 +2,10 @@ const mongoose = require("mongoose");
 const express = require("express");
 const router = express.Router();
 const User = require("../models/user"); 
-const {createProfile,upload }=require("../controllers/profileController")
+const {createProfile,upload,getUser }=require("../controllers/profileController")
 
 router.post("/create-profile",upload.single('profileImage'),createProfile)
-
+router.get("/getUsers",getUser)
 
 
 // Fetch user by ID

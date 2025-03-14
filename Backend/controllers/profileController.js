@@ -2,8 +2,7 @@ const User = require('../models/user');
 const multer = require('multer');
 const path = require('path');
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
-const cloudinary = require('../cloudinaryConfig');
-
+const cloudinary = require('../cloudinaryConfig')
 
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
@@ -31,36 +30,46 @@ const upload = multer({
       console.log("Request Body:", req.body);
       console.log("Request File:", req.file);
   
-      const { fullname, bio, phone, dateOfBirth, gender, location, occupation, personas, contentPreferences, externalLinks, email } = req.body;
+      const { fullName, bio, phone, dateOfBirth, gender, location, occupation, personas, contentPreferences, externalLinks, email } = req.body;
   
       if (!email) {
         return res.status(400).json({ message: "Email is required" });
       }
   
-      // Profile image handling
+      // Handle profile image
       const profileImagePath = req.file ? req.file.path.replace(/\\/g, "/") : null;
   
-      
-  
-      // Find user by email
+      // Find existing user by email
       const existingUser = await User.findOne({ email });
   
       if (!existingUser) {
         return res.status(404).json({ message: "User not found" });
       }
   
-      // Update user profile fields
-      if (fullname) existingUser.fullName = fullname;
-      if (profileImagePath) existingUser.profileImage = profileImagePath;
-      if (bio) existingUser.bio = bio;
-      if (phone) existingUser.phone = phone;
-      if (dateOfBirth) existingUser.dateOfBirth = new Date(dateOfBirth);
-      if (gender) existingUser.gender = gender;
-      if (location) existingUser.location = location;
-      if (occupation) existingUser.occupation = occupation;
-      if (personas) existingUser.persona = personas;
-      if (contentPreferences) existingUser.contentPreferences = contentPreferences;
-      if (externalLinks) existingUser.externalLinks = JSON.parse(externalLinks);
+      // Update fields only if a new value is provided
+      if (fullName != null) existingUser.fullName = fullName;
+      if (profileImagePath != null) existingUser.profileImage = profileImagePath;
+      if (bio != null) existingUser.bio = bio;
+      if (phone != null) existingUser.phone = phone;
+      if (dateOfBirth != null) existingUser.dateOfBirth = new Date(dateOfBirth);
+      if (gender != null) existingUser.gender = gender;
+      if (location != null) existingUser.location = location;
+      if (occupation != null) existingUser.occupation = occupation;
+  
+      // Update personas and contentPreferences (convert to arrays if provided)
+      if (personas != null) {
+        existingUser.persona = Array.isArray(personas) ? personas : personas.split(",").map(p => p.trim());
+      }
+      if (contentPreferences != null) {
+        existingUser.contentPreferences = Array.isArray(contentPreferences)
+          ? contentPreferences
+          : contentPreferences.split(",").map(p => p.trim());
+      }
+  
+      // Update external links (ensure valid JSON)
+      if (externalLinks != null) {
+        existingUser.externalLinks = JSON.parse(externalLinks);
+      }
   
       // Save the updated profile
       await existingUser.save();
@@ -74,12 +83,23 @@ const upload = multer({
       res.status(500).json({ message: "Internal Server Error", error: error.message });
     }
   };
+  
+  
+  
+const getUser = async(req,res) => {
+  try {
+    const users = await User.find();
+    console.log(users) // Fetch all users
+    res.json(users);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch users" });
+  }
 
-
+}
 
 
 module.exports = {
   createProfile,
   upload,
- 
+  getUser
 };

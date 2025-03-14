@@ -8,10 +8,10 @@ const postSchema = new mongoose.Schema({
   author: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
   createdAt: { type: Date, default: Date.now },
   text: { type: String, required: true },
-  image: { type: String, required: true }, // Cloudinary image URL
-  videoUrl: { type: String, required: true }, // Cloudinary URL for the post’s video
-  pdfUrl: { type: String, required: true }, // Cloudinary URL for the post’s PDF
-  audioUrl: { type: String, required: true },
+  image: { type: String }, // ✅ Made optional to prevent errors
+  videoUrl: { type: String }, // ✅ Made optional
+  pdfUrl: { type: String }, // ✅ Made optional
+  audioUrl: { type: String },
   mediaType: { type: String, enum: ["image", "video", "pdf", "audio"], required: true }, // Add this field
   category: { type: String, required: true },
   likes: {type: Array, default: []}, 
@@ -21,8 +21,16 @@ const postSchema = new mongoose.Schema({
     required: true,
     ref: 'User',
   },
-     
-    
+  posts: [{
+    url: { type: String, required: true },
+    caption: { type: String, default: '' },
+    content_type: { type: String, required: true },
+    category: { type: String, required: true, default: '' },
+    hashtags: { type: [String], default: [] }, // ✅ Fixed default type
+    tags: { type: [String], default: [] }, // ✅ Fixed default type
+    visibility: { type: String, default: '' },
+    created_at: { type: Date, default: Date.now },
+  }],
   
 });
 

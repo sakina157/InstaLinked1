@@ -1,5 +1,6 @@
+import React from 'react';
 import { useEffect, useState } from "react";
-import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
+import { BrowserRouter as Router, Route, Routes, useLocation  } from "react-router-dom";
 import Signup from "./components/Signup";
 import OtpVerification from "./components/OtpVerification";
 import NameSelection from "./components/NameSelection";
@@ -14,11 +15,14 @@ import ViewProfile from "./components/ViewProfile";
 import CreateProfile from "./components/CreateProfile";
 import Navbar from "./components/Navbar";
 import HomeNavbar from "./components/HomeNavbar";
+import Explore from "./components/Explore"
+import PopUPexplore from "./components/PopUPexplore";
+import { SocketProvider } from './context/SocketContext';
 
 
 function App() {
   const [user, setUser] = useState(null);
-
+  
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
     if (storedUser) {
@@ -27,7 +31,21 @@ function App() {
   }, []);
 
   return (
-    <Router>
+    <SocketProvider>
+      <Router>
+        <LocationProvider user={user}/>
+      </Router>
+    </SocketProvider>
+  );
+}
+// ✅ Create a separate component inside Router
+function LocationProvider({ user }) {
+  const location = useLocation();
+  const background = location.state?.background;
+
+  return (
+    
+    <>
       {/* Show Navbar only for Signup and Login */}
       <Routes>
         <Route path="/"element={
@@ -61,7 +79,23 @@ function App() {
         <Route path="/home-navbar" element={<HomeNavbar />} />
         
       </Routes>
-    </Router>
+
+      <Routes location={background || location}>
+        <Route path="/explore-page" element={<Explore />} />
+      </Routes>
+
+      {background && (
+        <Routes>
+          <Route
+            path="/p/:postId"
+            element={
+              <PopUPexplore/>
+                
+            }
+          />
+        </Routes>
+      )}
+    </>
   );
 }
 

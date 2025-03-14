@@ -1,126 +1,223 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import axios from "axios";
-import { useNavigate } from 'react-router-dom';
-import default_user from '../images/default_user.jpg'
+import { useNavigate, useLocation } from 'react-router-dom';
+import default_user from '../images/default_user.jpg';
 import HomeNavbar from "./HomeNavbar";
+import disk from '../images/disk.jpg';
+import { useRef } from "react";
 
-// Reusable Post Component
-const Post = ({ post }) => {
-  return (
-    <div style={styles.postCard}>
-      <div style={styles.postHeader}>
-        <span style={styles.avatar}>👤</span>
-        <div>
-          <strong>{post.userEmail}</strong>
-          <p style={styles.role}>{post.role} • {post.time}</p>
-        </div>
-      </div>
-      <p style={styles.postText}>{post.text}</p>
-      {post.mediaUrl && (
-        post.mediaType === "video" ? (
-          <video controls width="100%" style={styles.postMedia}>
-            <source src={post.mediaUrl} type="video/mp4" />
-          </video>
-        ) : post.mediaType === "pdf" ? (
-          <iframe
-            src={post.mediaUrl}
-            width="100%"
-            height="500px"
-            style={styles.postMedia}
-            title="PDF Viewer"
-          />
-        ) : post.mediaType === "audio" ? (
-          <audio controls style={styles.postMedia}>
-            <source src={post.mediaUrl} type="audio/mpeg" />
-          </audio>
-        ) : (
-          <img src={post.mediaUrl} alt="Post" style={styles.postMedia} />
-        )
-      )}
-      <p style={styles.postText}>{post.text}</p>
-      <p style={styles.category}>{post.category}</p> {/* Display category */}
-      <div style={styles.postActions}>
-        <button style={styles.actionButton}>❤️ Like</button>
-        <button style={styles.actionButton}>💬 Comment</button>
-        <button style={styles.actionButton}>➕ Follow</button>
-      </div>
-    </div>
-  );
-};
+// Change the default profile image to use local image instead of Cloudinary
+const DEFAULT_PROFILE_IMAGE = default_user;
 
 const HomePage = () => {
-  
-  const storedUser = JSON.parse(localStorage.getItem("user")) || {};
+  const storedUser = useMemo(() => JSON.parse(localStorage.getItem("user")) || {}, []);
   const navigate = useNavigate();
   const [username, setUsername] = useState(storedUser.username || "Loading...");
-  const [profileImage, setProfileImage] = useState(storedUser.profileImage || default_user);
+  const [profileImage, setProfileImage] = useState(storedUser.profileImage || DEFAULT_PROFILE_IMAGE);
   const [posts, setPosts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState(1); 
+  const [filteredPosts, setFilteredPosts] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState(null);
+  const videoRefs = useRef({});
+  const [page, setPage] = useState(1);
+  const location = useLocation();
 
-  // ✅ Get email from LocalStorage
-  const userEmail = localStorage.getItem("email");
+  const mediaStyle = useMemo(() => ({
+    width: '100%',
+    maxWidth: '470px',
+    height: 'auto',
+    marginBottom: '20px',
+    borderRadius: '8px',
+    objectFit: 'cover'
+  }), []);
 
   const fetchUserData = useCallback(async () => {
-    console.log("Fetching user data for email:", userEmail);
+    if (!storedUser.email) {
+      console.error("⚠️ No email found in LocalStorage! Cannot fetch user data.");
+      return;
+    }
+
     try {
       const response = await axios.get("http://localhost:5500/api/user/data", {
-        params: { email: userEmail },
-        withCredentials: true, // Ensure cookies are sent
+        params: { email: storedUser.email },
+        withCredentials: true,
       });
 
       if (response.data) {
-        setUsername(response.data.username);
-        setProfileImage(response.data.profileImage);
+        const newUserData = {
+          ...storedUser,
+          username: response.data.username,
+          profileImage: response.data.profileImage || DEFAULT_PROFILE_IMAGE
+        };
 
-        // ✅ Update LocalStorage to prevent refresh issue
-        localStorage.setItem("username", response.data.username);
-        localStorage.setItem("profileImage", response.data.profileImage);
-
-        console.log("Updated user data from MongoDB.");
+        // Update state and localStorage in one go
+        setUsername(newUserData.username);
+        setProfileImage(newUserData.profileImage);
+        localStorage.setItem("user", JSON.stringify(newUserData));
       }
     } catch (error) {
       console.error("Error fetching user data:", error);
     }
-  }, [userEmail]); 
-  
-  
-// Call fetchUserData on mount
-useEffect(() => {
-  fetchUserData();  // ✅ Call function inside useEffect
-}, [fetchUserData]);  // ✅ Empty dependency array
+  }, [storedUser]);
 
-const fetchRandomPosts = useCallback(async () => {
-  try {
-    const response = await axios.get(`http://localhost:5500/api/random-media/${storedUser._id}`);
-    return response.data;
-  } catch (error) {
-    console.error("Error fetching random posts:", error);
-    return [];
-  }
-}, [storedUser._id]);
-  
   // Fetch feed data
-  const fetchFeed = useCallback(async () => {
-    if (!userEmail) return;
-    setLoading(true);
+  const fetchHomepagePosts = useCallback(async () => {
     try {
-      const [personalizedResponse, randomPosts] = await Promise.all([
-        axios.get(`http://localhost:5500/api/feed?email=${userEmail}&page=${page}`),
-        fetchRandomPosts(),
-      ]);
-  
-      const combinedPosts = [...personalizedResponse.data, ...randomPosts];
-      const uniquePosts = Array.from(new Set(combinedPosts.map((post) => post._id)))
-        .map((id) => combinedPosts.find((post) => post._id === id));
-  
-      setPosts(uniquePosts);
+      const response = await axios.get("http://localhost:5500/api/feed/homepage");
+      if (Array.isArray(response.data)) {
+        const arranged = arrangeHomepagePosts(response.data);
+        setPosts(arranged);
+        setFilteredPosts(arranged);
+        localStorage.setItem('homepagePosts', JSON.stringify(arranged));
+      }
     } catch (error) {
-      console.error("Error fetching posts:", error);
-    } finally {
-      setLoading(false);
+      console.error('Error fetching homepage posts:', error);
     }
-  }, [userEmail, fetchRandomPosts, page]);
+  }, []);
+
+  useEffect(() => {
+    fetchUserData();
+  }, [fetchUserData]);
+
+  useEffect(() => {
+    if (window.performance.getEntriesByType("navigation")[0].type === "reload") {
+      localStorage.removeItem("homepagePosts");
+      fetchHomepagePosts();
+    } else {
+      const storedPosts = localStorage.getItem('homepagePosts');
+      if (storedPosts) {
+        const parsedPosts = JSON.parse(storedPosts);
+        setPosts(parsedPosts);
+        setFilteredPosts(parsedPosts);
+      } else {
+        fetchHomepagePosts();
+      }
+    }
+  }, [fetchHomepagePosts]);
+
+  useEffect(() => {
+    if (selectedCategory) {
+      const filtered = posts.filter(post => post.category === selectedCategory);
+      setFilteredPosts(filtered);
+    } else {
+      setFilteredPosts(posts);
+    }
+  }, [selectedCategory, posts]);
+
+  const getUserData = useCallback((post) => ({
+    fullName: post.user?.fullName || "Demo User",
+    profileImage: post.user?.profileImage || DEFAULT_PROFILE_IMAGE
+  }), []);
+
+  const renderMedia = useCallback((post) => {
+    const postStyle = {
+      ...mediaStyle,
+      marginBottom: post.marginBottom || '20px'
+    };
+
+    switch (post.content_type) {
+      case 'image':
+        return (
+          <img
+            src={post.url}
+            alt={post.caption}
+            style={postStyle}
+            loading="lazy"
+          />
+        );
+      case 'video':
+        return (
+          <video
+            src={post.url}
+            style={postStyle}
+            controls
+            autoPlay={post.autoPlay}
+            muted={post.autoPlay}
+            loop
+            playsInline
+          />
+        );
+      case 'audio':
+        return (
+          <div style={{ marginBottom: post.marginBottom || '20px' }}>
+            <img
+              src={disk}
+              alt="Audio thumbnail"
+              style={{ width: '100%', maxWidth: '470px', borderRadius: '8px' }}
+            />
+            <audio
+              src={post.url}
+              controls
+              style={{ width: '100%', marginTop: '10px' }}
+            />
+          </div>
+        );
+      case 'pdf':
+        return (
+          <div style={{ marginBottom: post.marginBottom || '20px' }}>
+            <img
+              src={post.thumbnail || DEFAULT_PROFILE_IMAGE}
+              alt="PDF thumbnail"
+              style={{ width: '100%', maxWidth: '470px', borderRadius: '8px' }}
+            />
+            <a
+              href={post.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ display: 'block', marginTop: '10px', color: '#0095f6' }}
+            >
+              View PDF
+            </a>
+          </div>
+        );
+      default:
+        return null;
+    }
+  }, [mediaStyle]);
+
+  const renderPost = useCallback((post) => {
+    const user = getUserData(post);
+
+    return (
+      <div key={post._id} className="post-container" style={{ marginBottom: post.marginBottom || '20px' }}>
+        <div className="post-header">
+          <span className="username">{user.fullName}</span>
+        </div>
+        
+        {post.isCarousel ? (
+          <div className="carousel-container">
+            {post.carouselImages?.map((image, index) => (
+              <img
+                key={index}
+                src={`https://res.cloudinary.com/do4ekgroe/${image}`}
+                alt={`Carousel image ${index + 1}`}
+                style={mediaStyle}
+                onError={(e) => {
+                  e.target.onerror = null;
+                  e.target.style.display = 'none';
+                }}
+              />
+            ))}
+          </div>
+        ) : (
+          renderMedia(post)
+        )}
+
+        <div className="post-actions">
+          <div className="likes">{post.likes || 0} likes</div>
+          <div className="comments">{post.comments || 0} comments</div>
+        </div>
+        
+        <div className="post-caption">
+          <span className="username">{user.fullName}</span>
+          {post.caption}
+        </div>
+      </div>
+    );
+  }, [getUserData, renderMedia, mediaStyle]);
+
+  const arrangeHomepagePosts = useCallback((posts) => {
+    return posts.slice(0, 120);
+  }, []);
 
   // Handle infinite scroll
   const handleScroll = useCallback(() => {
@@ -138,10 +235,7 @@ const fetchRandomPosts = useCallback(async () => {
     return () => window.removeEventListener("scroll", handleScroll);
   }, [handleScroll]);
   
-  useEffect(() => {
-    fetchFeed();
-  }, [fetchFeed]);
-
+  
   return (
     <>
     <HomeNavbar /> 
@@ -202,21 +296,33 @@ const fetchRandomPosts = useCallback(async () => {
         </div>
 
         {/* Feed Section */}
-        <div style={styles.feed}>
-            <div style={styles.profileComplete}>
-              <p><strong>Complete Your Profile</strong></p>
-              <p>Personalize your experience and connect better with the community</p>
-              <button style={styles.completeButton}>Complete</button>
-            </div>
+<div style={styles.feed}>
+    <div style={styles.profileComplete}>
+        <p><strong>Complete Your Profile</strong></p>
+        <p>Personalize your experience and connect better with the community</p>
+        <button style={styles.completeButton}>Complete</button>
+    </div>
 
-            {loading ? (
-              <p>Loading posts...</p>
-            ) : (
-              posts.map((post) => (
-                <Post key={post._id} post={post} />
-              ))
-            )}
-          </div>
+    {/* Post Feed (One Post Per Row) */}
+    <div style={styles.postFeed}>
+        {filteredPosts.length > 0 ? (
+            filteredPosts.map(post => (
+                <div key={post._id} style={styles.postItem}>
+                    <div
+                        onClick={() => navigate(`/p/${post._id}`, { state: { background: location } })}
+                        className="link"
+                        style={styles.postContent}
+                    >
+                        {post.url ? renderPost(post) : <p>Post content unavailable</p>}
+                    </div>
+                </div>
+            ))
+        ) : (
+            <p className="text-center text-gray-500">No posts available</p>
+        )}
+    </div>
+</div>
+
 
         {/* Right Sidebar */}
         <div style={styles.rightSidebar}></div>
@@ -257,7 +363,7 @@ const styles = {
   username: {
     margin: 0,
     fontWeight: "bold",
-  fontSize: "16px",
+    fontSize: "16px",
   },
   headline: {
     margin: 0,
@@ -267,6 +373,9 @@ const styles = {
   content: {
     display: "flex",
     margin: "20px",
+    maxWidth: "1200px",
+    marginLeft: "auto",
+    marginRight: "auto",
   },
   leftSidebar: {
     width: "220px",
@@ -274,6 +383,9 @@ const styles = {
     padding: "15px",
     borderRadius: "5px",
     marginRight: "20px",
+    position: "sticky",
+    top: "20px",
+    height: "fit-content",
   },
   trendingItem: {
     marginBottom: "10px",
@@ -300,7 +412,8 @@ const styles = {
   },
   feed: {
     flex: 1,
-    
+    maxWidth: "600px",
+    margin: "0 auto",
   },
   profileComplete: {
     backgroundColor: "#ffffff",
@@ -316,25 +429,7 @@ const styles = {
     borderRadius: "5px",
     cursor: "pointer",
   },
-  postGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
-    gap: "20px",
-    marginTop: "20px",
-  },
-  postCard: {
-    backgroundColor: "#ffffff",
-    padding: "15px",
-    borderRadius: "5px",
-    marginBottom: "15px",
-  },
-  postHeader: {
-    display: "flex",
-    alignItems: "center",
-  },
-  postText: {
-    marginTop: "10px",
-  },
+  
   postImage: {
     height: "200px",
     backgroundColor: "#ddd",
@@ -363,6 +458,69 @@ const styles = {
   },
   rightSidebar: {
     width: "220px",
+    position: "sticky",
+    top: "20px",
+    height: "fit-content",
+  },
+  mediaContainer: {
+    width: "100%",
+    position: "relative",
+    backgroundColor: "#f8f8f8",
+  },
+  image: {
+    width: "100%",
+    height: "auto",
+    maxHeight: "600px",
+    objectFit: "contain",
+    display: "block",
+  },
+  video: {
+    width: "100%",
+    height: "600px",
+    objectFit: "contain",
+    backgroundColor: "#000",
+  },
+  reel: {
+    width: "100%",
+    height: "800px",
+    objectFit: "cover",
+    backgroundColor: "#000",
+  },
+  pdfContainer: {
+    width: "100%",
+    height: "800px",
+    position: "relative",
+    backgroundColor: "#f8f8f8",
+  },
+  audioContainer: {
+    width: "100%",
+    height: "400px",
+    position: "relative",
+    backgroundColor: "#f8f8f8",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  audioThumbnail: {
+    width: "100%",
+    height: "100%",
+    objectFit: "cover",
+  },
+  audioOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  audioControls: {
+    width: "90%",
+    zIndex: 2,
   },
 };
 

@@ -1,16 +1,22 @@
 const express = require("express");
-const { updateUsername, followUser, unfollowUser, getUserProfile, getUser } = require("../controllers/userController");
+const { updateUsername, followUser, unfollowUser, getUserProfile, getUser, getFollowers, getFollowing } = require("../controllers/userController");
 const User = require("../models/user");
 
 const router = express.Router();
 
-router.post("/update-username", updateUsername);
+// User profile routes
+router.get("/profile/:email", getUserProfile);
+router.get("/:userId", getUser);
+
+// Follow/Unfollow routes
 router.post("/follow", followUser);
 router.post("/unfollow", unfollowUser);
 
-router.get("/profile/:email", getUserProfile);
-router.get("/users/:userId", getUser);
+// Followers/Following routes
+router.get('/:userId/followers', getFollowers);
+router.get('/:userId/following', getFollowing);
 
+// Firebase route
 router.get("/firebase/:firebaseUID", async (req, res) => {
     try {
         const { firebaseUID } = req.params;

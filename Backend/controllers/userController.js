@@ -1,4 +1,5 @@
 const User = require("../models/user");
+const Notification = require('../models/notification');
 
 const updateUsername = async (req, res) => {
     try {
@@ -34,24 +35,83 @@ const updateUsername = async (req, res) => {
 const followUser = async (req, res) => {
     try {
         const { userId, targetUserId } = req.body;
+        console.log('Follow: Attempting to follow user', { userId, targetUserId });
 
         const user = await User.findById(userId);
         const targetUser = await User.findById(targetUserId);
 
         if (!user || !targetUser) {
+            console.log('Follow: User not found', { user, targetUser });
             return res.status(404).json({ message: "User not found" });
         }
 
-        if (!user.following.includes(targetUserId)) {
-            user.following.push(targetUserId);
-            targetUser.followers.push(userId);
-            await user.save();
-            await targetUser.save();
+        // Check if already following
+        if (user.following.includes(targetUserId)) {
+            console.log('Follow: Already following user');
+            return res.status(400).json({ message: "Already following this user" });
         }
 
-        res.json({ message: "User followed successfully" });
+        // Add to following/followers
+        user.following.push(targetUserId);
+        targetUser.followers.push(userId);
+        
+        await Promise.all([user.save(), targetUser.save()]);
+        console.log('Follow: Updated following/followers');
+
+        // Create notification for the target user
+        const notification = new Notification({
+            recipient: targetUserId,
+            sender: userId,
+            type: 'follow',
+            content: `${user.username || user.email} started following you`
+        });
+
+        const savedNotification = await notification.save();
+        console.log('Follow: Created notification', savedNotification);
+
+        // Get io instance and emit notification
+        const io = req.app.get('io');
+        if (!io) {
+            console.error('Socket.io instance not found');
+            // Continue execution even if socket.io is not available
+        } else {
+            try {
+                const populatedNotification = await Notification.findById(savedNotification._id)
+                    .populate('sender', 'username email profileImage');
+                
+                console.log('Follow: Populated notification', populatedNotification);
+
+                // Get unread count
+                const unreadCount = await Notification.countDocuments({
+                    recipient: targetUserId,
+                    read: false
+                });
+                console.log('Follow: Unread count', unreadCount);
+
+                // Emit to specific user's room
+                io.to(targetUserId.toString()).emit('newNotification', {
+                    notification: populatedNotification,
+                    count: unreadCount
+                });
+                console.log('Follow: Emitted notification to room', targetUserId.toString());
+            } catch (error) {
+                console.error('Error emitting notification:', error);
+            }
+        }
+
+        // Return updated user data
+        const updatedUser = await User.findById(userId)
+            .select('following followers')
+            .lean();
+
+        res.json({ 
+            message: "User followed successfully",
+            following: updatedUser.following,
+            followers: updatedUser.followers
+        });
     } catch (error) {
-        res.status(500).json({ message: "Server Error", error });
+        console.error("Error in followUser:", error);
+        res.status(500).json({ message: "Error following user" });
     }
 };
 
@@ -67,15 +127,25 @@ const unfollowUser = async (req, res) => {
             return res.status(404).json({ message: "User not found" });
         }
 
-        user.following = user.following.filter(id => id !== targetUserId);
-        targetUser.followers = targetUser.followers.filter(id => id !== userId);
+        // Remove from following/followers using toString() for proper comparison
+        user.following = user.following.filter(id => id.toString() !== targetUserId.toString());
+        targetUser.followers = targetUser.followers.filter(id => id.toString() !== userId.toString());
 
-        await user.save();
-        await targetUser.save();
+        await Promise.all([user.save(), targetUser.save()]);
 
-        res.json({ message: "User unfollowed successfully" });
+        // Return updated user data
+        const updatedUser = await User.findById(userId)
+            .select('following followers')
+            .lean();
+
+        res.json({ 
+            message: "User unfollowed successfully",
+            following: updatedUser.following,
+            followers: updatedUser.followers
+        });
     } catch (error) {
-        res.status(500).json({ message: "Server Error", error });
+        console.error("Error in unfollowUser:", error);
+        res.status(500).json({ message: "Server Error", error: error.message });
     }
 };
 
@@ -123,7 +193,79 @@ const getUserProfile = async (req, res) => {
     }
 };
 
-module.exports = { updateUsername, followUser, unfollowUser, getUserProfile, getUser };
+// Get user's followers with follow status
+const getFollowers = async (req, res) => {
+    try {
+        const { userId } = req.params;
+        console.log('Fetching followers for user:', userId);
+        
+        const user = await User.findById(userId)
+            .populate({
+                path: 'followers',
+                select: '_id username email profileImage following followers',
+                populate: {
+                    path: 'following followers',
+                    select: '_id'
+                }
+            })
+            .lean();
+        
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        // Transform the data to include follow status
+        const followersWithStatus = user.followers.map(follower => ({
+            ...follower,
+            isFollowing: follower.following.some(id => id.toString() === userId),
+            isFollowedByViewer: follower.followers.some(id => id.toString() === userId)
+        }));
+
+        console.log('Processed followers:', followersWithStatus);
+        res.status(200).json(followersWithStatus);
+    } catch (error) {
+        console.error("Error getting followers:", error);
+        res.status(500).json({ message: "Error getting followers", error: error.message });
+    }
+};
+
+// Get user's following with follow status
+const getFollowing = async (req, res) => {
+    try {
+        const { userId } = req.params;
+        console.log('Fetching following for user:', userId);
+        
+        const user = await User.findById(userId)
+            .populate({
+                path: 'following',
+                select: '_id username email profileImage following followers',
+                populate: {
+                    path: 'following followers',
+                    select: '_id'
+                }
+            })
+            .lean();
+        
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        // Transform the data to include follow status
+        const followingWithStatus = user.following.map(followedUser => ({
+            ...followedUser,
+            isFollowing: true, // Since these are users that the main user follows
+            isFollowedByViewer: followedUser.followers.some(id => id.toString() === userId)
+        }));
+
+        console.log('Processed following:', followingWithStatus);
+        res.status(200).json(followingWithStatus);
+    } catch (error) {
+        console.error("Error getting following:", error);
+        res.status(500).json({ message: "Error getting following", error: error.message });
+    }
+};
+
+module.exports = { updateUsername, followUser, unfollowUser, getUserProfile, getUser, getFollowers, getFollowing };
 
 
 

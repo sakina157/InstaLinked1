@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import styled from "styled-components";
 import { useDropzone } from "react-dropzone";
 import { useNavigate } from "react-router-dom";
@@ -6,9 +6,10 @@ import axios from "axios";
 
 const contentTypes = {
   Image: "image/*",
-  Video: "video/*",
+  Reel: "video/*",
   Audio: "audio/*",
-  Article: ".pdf,.doc,.docx",
+  Pdf: ".pdf,.doc,.docx",
+  Documentary:"video/*"
 };
 
 const categories = {
@@ -33,15 +34,7 @@ const CreatePost = () => {
   const [error, setError] = useState("");
 
   const user = localStorage.getItem("user");
-  const userObject = user ? JSON.parse(user) : null;
-
-  useEffect(() => {
-    if (!userObject) {
-      alert("User not logged in. Redirecting to login page.");
-      navigate("/login");
-    }
-  }, [userObject, navigate]);
-
+  const userObject = JSON.parse(user);
   console.log("User Email:", userObject.email);
 
   const handlePublish = async () => {
@@ -112,7 +105,7 @@ const CreatePost = () => {
   return (
     <Container>
       <Header><span>Create New Post</span>
-      <CloseButton onClick={() => navigate("/home")}>X</CloseButton></Header>
+      <CloseButton onClick={() => navigate("/Home")}>X</CloseButton></Header>
       
 
       <Content>
@@ -307,14 +300,6 @@ const Input = styled.input`
   border: 1px solid #ccc;
   border-radius: 5px;
 `;
-
-/*const VisibilityWrapper = styled.div`
-  margin-bottom: 15px;
-  select {
-    margin-left: 10px;
-    padding: 5px;
-  }
-`;*/
 
 const Button = styled.button`
   background: ${(props) => (props.primary ? "#116466" : props.danger ? "#ff4d4d" : props.secondary ? "#777" : "#ccc")};

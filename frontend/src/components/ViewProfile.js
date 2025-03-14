@@ -1,22 +1,194 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { FaShareAlt } from "react-icons/fa";
-import AppNavbar from './AppNavbar';
-
+import { FaShareAlt, FaTimes } from "react-icons/fa";
+import HomeNavbar from './HomeNavbar';
+import FollowButton from './FollowButton';
 
 const ViewProfile = () => {
-  const { userId } = useParams(); // Get the user ID from the URL
+  const { userId } = useParams();
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [loggedInUser, setLoggedInUser] = useState(null); // Store logged-in user info
+  const [loggedInUser, setLoggedInUser] = useState(null);
+  const [showFollowers, setShowFollowers] = useState(false);
+  const [showFollowing, setShowFollowing] = useState(false);
+  const [followersList, setFollowersList] = useState([]);
+  const [followingList, setFollowingList] = useState([]);
+  const [loadingFollowers, setLoadingFollowers] = useState(false);
+  const [loadingFollowing, setLoadingFollowing] = useState(false);
 
+  // Fetch followers/following lists
+  const fetchFollowersList = async () => {
+    try {
+      setLoadingFollowers(true);
+      console.log('Fetching followers for userId:', userId);
+      const response = await fetch(`http://localhost:5500/api/users/${userId}/followers`, {
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch followers: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      console.log('Followers response:', data);
+      
+      // Make sure we're getting an array of user objects
+      if (Array.isArray(data)) {
+        // If the data is just an array of IDs, we need to fetch user details
+        if (data.length > 0 && typeof data[0] === 'string') {
+          const userDetails = await Promise.all(
+            data.map(async (followerId) => {
+              const userResponse = await fetch(`http://localhost:5500/api/user/${followerId}`, {
+                credentials: 'include',
+                headers: {
+                  'Accept': 'application/json',
+                  'Content-Type': 'application/json'
+                }
+              });
+              if (!userResponse.ok) throw new Error(`Failed to fetch user ${followerId}`);
+              return userResponse.json();
+            })
+          );
+          setFollowersList(userDetails);
+        } else {
+          setFollowersList(data);
+        }
+      } else {
+        console.error('Followers data is not an array:', data);
+        setFollowersList([]);
+      }
+    } catch (error) {
+      console.error("Error fetching followers:", error);
+      setFollowersList([]);
+    } finally {
+      setLoadingFollowers(false);
+    }
+  };
+
+  const fetchFollowingList = async () => {
+    try {
+      setLoadingFollowing(true);
+      console.log('Fetching following for userId:', userId);
+      const response = await fetch(`http://localhost:5500/api/users/${userId}/following`, {
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch following: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      console.log('Following response:', data);
+      setFollowingList(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error("Error fetching following:", error);
+    } finally {
+      setLoadingFollowing(false);
+    }
+  };
+
+  // Update handleFollowAction
+  const handleFollowAction = async (targetUserId, isCurrentlyFollowing) => {
+    try {
+        console.log('Attempting to follow/unfollow:', {
+            loggedInUser: loggedInUser._id,
+            targetUserId,
+            isCurrentlyFollowing
+        });
+
+        const response = await fetch(`http://localhost:5500/api/users/${isCurrentlyFollowing ? 'unfollow' : 'follow'}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            credentials: 'include',
+            body: JSON.stringify({
+                userId: loggedInUser._id,
+                targetUserId
+            })
+        });
+
+        console.log('Follow/unfollow response status:', response.status);
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            console.error('Follow/unfollow error:', errorData);
+            throw new Error(`Failed to ${isCurrentlyFollowing ? 'unfollow' : 'follow'} user`);
+        }
+
+        const data = await response.json();
+        console.log('Follow/unfollow success:', data);
+
+        // Update logged-in user state with new following/followers lists
+        setLoggedInUser(prev => ({
+            ...prev,
+            following: data.following,
+            followers: data.followers
+        }));
+
+        // Update viewed user's followers/following if we're on their profile
+        if (userId === targetUserId) {
+            setUser(prev => ({
+                ...prev,
+                followers: isCurrentlyFollowing
+                    ? prev.followers.filter(id => id !== loggedInUser._id)
+                    : [...prev.followers, loggedInUser._id]
+            }));
+        }
+
+        // Refresh the lists immediately
+        if (showFollowers) {
+            console.log('Refreshing followers list');
+            await fetchFollowersList();
+        }
+        if (showFollowing) {
+            console.log('Refreshing following list');
+            await fetchFollowingList();
+        }
+
+    } catch (error) {
+        console.error(`Error ${isCurrentlyFollowing ? 'unfollowing' : 'following'} user:`, error);
+    }
+  };
+
+  // Update useEffect for logged in user to also fetch full user data
   useEffect(() => {
-    // Get logged-in user from localStorage
+    const fetchLoggedInUserData = async () => {
     const storedUser = localStorage.getItem("user");
     if (storedUser) {
-      setLoggedInUser(JSON.parse(storedUser)); // ✅ Now we have logged-in user info
-    }
+        const parsedUser = JSON.parse(storedUser);
+        // Fetch complete user data including following/followers
+        try {
+          const response = await fetch(`http://localhost:5500/api/user/${parsedUser._id}`, {
+            credentials: 'include',
+            headers: {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json'
+            }
+          });
+          if (response.ok) {
+            const userData = await response.json();
+            setLoggedInUser(userData);
+          } else {
+            setLoggedInUser(parsedUser);
+          }
+        } catch (error) {
+          console.error("Error fetching logged in user data:", error);
+          setLoggedInUser(parsedUser);
+        }
+      }
+    };
+    fetchLoggedInUserData();
   }, []);
 
   useEffect(() => {
@@ -25,7 +197,6 @@ const ViewProfile = () => {
         setLoading(true);
         const response = await fetch(`http://localhost:5500/api/user/${userId}`);
         const data = await response.json();
-        console.log("Fetched User Data:", data);
         setUser(data);
       } catch (error) {
         console.error("Error fetching user data:", error);
@@ -39,12 +210,103 @@ const ViewProfile = () => {
     }
   }, [userId]);
 
+  // Update UserListModal component
+  const UserListModal = ({ show, onClose, title, users, loading }) => {
+    if (!show) return null;
+
+    const getFollowButtonText = (listUser) => {
+        if (!loggedInUser || loggedInUser._id === listUser._id) return null;
+        
+        // Check if the logged-in user is following this user
+        const isFollowing = loggedInUser.following?.some(id => id.toString() === listUser._id.toString());
+        // Check if this user is following the logged-in user
+        const isFollowedBy = listUser.followers?.some(id => id.toString() === loggedInUser._id.toString());
+        
+        if (isFollowing) return "Following";
+        if (isFollowedBy) return "Follow Back";
+        return "Follow";
+    };
+
+    const getButtonStyle = (listUser) => {
+        const isFollowing = loggedInUser?.following?.some(id => id.toString() === listUser._id.toString());
+        return {
+            ...styles.followButton,
+            backgroundColor: isFollowing ? '#e0e0e0' : '#006d77',
+            color: isFollowing ? '#000' : '#fff'
+        };
+    };
+
+    return (
+        <div style={styles.modalOverlay}>
+            <div style={styles.modalContent}>
+                <div style={styles.modalHeader}>
+                    <h3>{title}</h3>
+                    <button style={styles.closeButton} onClick={onClose}>
+                        <FaTimes />
+                    </button>
+                </div>
+                <div style={styles.userList}>
+                    {loading ? (
+                        <div style={styles.loadingText}>Loading...</div>
+                    ) : users.length === 0 ? (
+                        <div style={styles.emptyText}>No {title.toLowerCase()} yet</div>
+                    ) : (
+                        users.map(listUser => (
+                            <div key={listUser._id} style={styles.userListItem}>
+                                <div 
+                                    style={{
+                                        ...styles.userListLeft,
+                                        cursor: 'pointer'
+                                    }}
+                                    onClick={() => {
+                                        navigate(`/profile/${listUser._id}`);
+                                        onClose();
+                                    }}
+                                >
+                                    <div style={styles.userListAvatarContainer}>
+                                        <img 
+                                            src={listUser.profileImage || "/default-avatar.png"} 
+                                            alt={listUser.username || listUser.email} 
+                                            style={styles.userListAvatar}
+                                            onError={(e) => {
+                                                e.target.onerror = null;
+                                                e.target.src = "/default-avatar.png";
+                                            }}
+                                        />
+                                    </div>
+                                    <div style={styles.userListInfo}>
+                                        <span style={styles.userListName}>{listUser.username || listUser.email}</span>
+                                    </div>
+                                </div>
+                                {loggedInUser && loggedInUser._id !== listUser._id && (
+                                    <button 
+                                        style={getButtonStyle(listUser)}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            const isFollowing = loggedInUser?.following?.some(
+                                                id => id.toString() === listUser._id.toString()
+                                            );
+                                            handleFollowAction(listUser._id, isFollowing);
+                                        }}
+                                    >
+                                        {getFollowButtonText(listUser)}
+                                    </button>
+                                )}
+                            </div>
+                        ))
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+  };
+
   if (loading) return <p>Loading profile...</p>;
   if (!user) return <p>User not found</p>;
 
   return (
     <>
-    <AppNavbar /> 
+    <HomeNavbar /> 
     <div style={styles.container}>
       {/* Left Section */}
       <div style={styles.leftSection}>
@@ -61,16 +323,46 @@ const ViewProfile = () => {
             <p style={styles.job}>{user?.jobTitle || "No Job"} at {user?.company || "Unknown Company"}</p>
             <p style={styles.location}>{user?.location || "Location Unavailable"}</p>
             <div style={styles.stats}>
-              <span>{user?.postsCount || 0} Posts</span>
-              <span>{user?.followersCount || 0} Followers</span>
-              <span>{user?.followingCount || 0} Following</span>
+                <span>{user?.posts?.length || 0} Posts</span>
+                <span 
+                  style={styles.clickableStat} 
+                  onClick={() => {
+                    fetchFollowersList();
+                    setShowFollowers(true);
+                  }}
+                >
+                  {user?.followers?.length || 0} Followers
+                </span>
+                <span 
+                  style={styles.clickableStat}
+                  onClick={() => {
+                    fetchFollowingList();
+                    setShowFollowing(true);
+                  }}
+                >
+                  {user?.following?.length || 0} Following
+                </span>
             </div>
             <div style={styles.buttons}>
-              {/* ✅ Show Edit Profile Button Only for Logged-in User */}
-              {loggedInUser?._id === user?._id && (
+                {loggedInUser?._id === user?._id ? (
                 <button style={styles.editButton} onClick={() => navigate("/create-profile")}>
                   Edit Profile
                 </button>
+                ) : (
+                  <>
+                    <FollowButton 
+                      targetUserId={user._id} 
+                      onFollowChange={(isFollowing) => {
+                        setUser(prev => ({
+                          ...prev,
+                          followers: isFollowing 
+                            ? [...(prev.followers || []), loggedInUser._id]
+                            : (prev.followers || []).filter(id => id !== loggedInUser._id)
+                        }));
+                      }}
+                    />
+                    <button style={styles.messageButton}>Message</button>
+                  </>
               )}
               <button style={styles.shareButton}>
                 <FaShareAlt /> Share Profile
@@ -142,11 +434,27 @@ const ViewProfile = () => {
         </div>
       </div>
     </div>
+
+      {/* Modals */}
+      <UserListModal 
+        show={showFollowers} 
+        onClose={() => setShowFollowers(false)} 
+        title="Followers" 
+        users={followersList}
+        loading={loadingFollowers}
+      />
+      <UserListModal 
+        show={showFollowing} 
+        onClose={() => setShowFollowing(false)} 
+        title="Following" 
+        users={followingList}
+        loading={loadingFollowing}
+      />
     </>
   );
 };
 
-// Your Existing Styles (No changes)
+// Update styles
 const styles = {
   container: {
     fontFamily: "Arial, sans-serif",
@@ -156,7 +464,7 @@ const styles = {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "flex-start",
-    paddingTop: "80px",
+    paddingTop: "20px",
   },
   leftSection: {
     width: "65%",
@@ -247,12 +555,30 @@ const styles = {
     gap: "20px",
   },
   followButton: {
+    padding: '8px 16px',
+    borderRadius: '8px',
+    border: 'none',
+    fontWeight: '600',
+    fontSize: '14px',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    minWidth: '100px',
+    textAlign: 'center',
+    backgroundColor: '#006d77',
+    color: '#fff',
+    marginLeft: '8px',
+    '&:hover': {
+      opacity: 0.9,
+    },
+  },
+  messageButton: {
     backgroundColor: "#80b6bb",
     color: "#fff",
     border: "none",
-    padding: "8px 12px",
-    borderRadius: "5px",
+    padding: "10px 15px",
     cursor: "pointer",
+    borderRadius: "6px",
+    fontWeight: "bold",
   },
   stats: {
     display: "flex",
@@ -298,6 +624,101 @@ const styles = {
     borderRadius: "8px",
     boxShadow: "0 2px 6px rgba(0, 0, 0, 0.08)",
   },
+  clickableStat: {
+    cursor: 'pointer',
+    '&:hover': {
+      textDecoration: 'underline'
+    }
+  },
+  modalOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    borderRadius: '12px',
+    width: '400px',
+    maxHeight: '80vh',
+    display: 'flex',
+    flexDirection: 'column'
+  },
+  modalHeader: {
+    padding: '16px',
+    borderBottom: '1px solid #dbdbdb',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  },
+  closeButton: {
+    background: 'none',
+    border: 'none',
+    cursor: 'pointer',
+    fontSize: '20px'
+  },
+  userList: {
+    overflowY: 'auto',
+    padding: '8px 0'
+  },
+  userListItem: {
+    padding: '8px 16px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    cursor: 'pointer',
+    '&:hover': {
+      backgroundColor: '#fafafa'
+    }
+  },
+  userListLeft: {
+    display: 'flex',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: '12px'
+  },
+  userListAvatarContainer: {
+    width: '44px',
+    height: '44px',
+    borderRadius: '50%',
+    overflow: 'hidden',
+    marginRight: '12px',
+    flexShrink: 0,
+    backgroundColor: '#f0f0f0',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    border: '1px solid #dbdbdb'
+  },
+  userListAvatar: {
+    width: '100%',
+    height: '100%',
+    objectFit: 'cover'
+  },
+  userListInfo: {
+    display: 'flex',
+    flexDirection: 'column'
+  },
+  userListName: {
+    fontWeight: '600',
+    fontSize: '14px'
+  },
+  loadingText: {
+    padding: '20px',
+    textAlign: 'center',
+    color: '#8e8e8e'
+  },
+  emptyText: {
+    padding: '20px',
+    textAlign: 'center',
+    color: '#8e8e8e'
+  }
 };
 
 export default ViewProfile;
