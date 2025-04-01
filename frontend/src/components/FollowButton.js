@@ -27,6 +27,7 @@ const FollowButton = ({ targetUserId, onFollowChange }) => {
                 setIsFollowing(response.data.isFollowing);
             } catch (error) {
                 console.error('Error checking follow status:', error);
+                console.log('Target User ID:', targetUserId, 'Logged In User ID:', loggedInUserId);
             }
         };
 
@@ -108,4 +109,4 @@ const FollowButton = ({ targetUserId, onFollowChange }) => {
     );
 };
 
-export default FollowButton; 
+export default FollowButton;

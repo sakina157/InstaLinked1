@@ -5,21 +5,18 @@ import { Link, useNavigate } from 'react-router-dom';
 import default_user from '../images/default_user.jpg'
 import logo from "../images/logo.svg"
 import { useSocket } from '../context/SocketContext';
-import Notification from './Notification';
 
 const Navbar = () => {
     const storedUser = JSON.parse(localStorage.getItem("user")) || {};
     const { unreadCount } = useSocket();
-    const [showNotifications, setShowNotifications] = useState(false);
     const [profileImage] = useState(storedUser.profileImage || default_user);
     const user = storedUser._id ? storedUser : null; 
     const [searchQuery, setSearchQuery] = useState("");
     const [searchResults, setSearchResults] = useState([]);
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
-
     
-
+    
      // ✅ Search users
      const handleSearch = async () => {
       if (!searchQuery.trim()) {
@@ -83,10 +80,10 @@ const Navbar = () => {
       <a href="/Home" style={styles.navIcon}><FaHome /></a>
       <a href="/explore-page" style={styles.navIcon}><FaWpexplorer /></a>
       <a href="/create-post" style={styles.navIcon}><FaPlusCircle /></a>
-      <div style={styles.navIcon} onClick={() => setShowNotifications(true)}>
-        <FaBell />
-        {unreadCount > 0 && <span style={styles.notificationBadge}>{unreadCount}</span>}
-      </div>
+      <Link to="/notifications" style={styles.navIcon}>
+      <FaBell />
+      {unreadCount > 0 && <span style={styles.notificationBadge}>{unreadCount}</span>}
+      </Link>
       <a href="/messages" style={styles.navIcon}><FaEnvelope /></a>
       <Link to={`/profile/${user?._id || ""}`} style={styles.navIcon}>
       <img src={profileImage} alt="User Profile" style={styles.profileImage} />
@@ -116,13 +113,6 @@ const Navbar = () => {
   ))}
 </ul>
 )}
-
-      {/* Notification Modal */}
-      <Notification 
-        show={showNotifications} 
-        onClose={() => setShowNotifications(false)} 
-      />
-
 </div>
  );
 };

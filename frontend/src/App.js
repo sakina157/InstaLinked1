@@ -18,6 +18,7 @@ import HomeNavbar from "./components/HomeNavbar";
 import Explore from "./components/Explore"
 import PopUPexplore from "./components/PopUPexplore";
 import { SocketProvider } from './context/SocketContext';
+import Notification from './components/Notification';
 
 
 function App() {
@@ -77,7 +78,7 @@ function LocationProvider({ user }) {
         <Route path="/profile/:userId" element={<ViewProfile />} />
         <Route path="/create-profile" element={<CreateProfile />} />
         <Route path="/home-navbar" element={<HomeNavbar />} />
-        
+        <Route path="/notifications" element={<Notification />} />
       </Routes>
 
       <Routes location={background || location}>

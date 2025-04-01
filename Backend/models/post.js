@@ -12,10 +12,8 @@ const postSchema = new mongoose.Schema({
   videoUrl: { type: String }, // ✅ Made optional
   pdfUrl: { type: String }, // ✅ Made optional
   audioUrl: { type: String },
-  mediaType: { type: String, enum: ["image", "video", "pdf", "audio"], required: true }, // Add this field
+  mediaType: { type: String, enum: ["image", "video", "pdf", "audio", "documentary"], required: true }, 
   category: { type: String, required: true },
-  likes: {type: Array, default: []}, 
-  comments:  { type: Array, default: []},
   user_email: {
     type: String, // Reference to the user ID
     required: true,
@@ -30,6 +28,32 @@ const postSchema = new mongoose.Schema({
     tags: { type: [String], default: [] }, // ✅ Fixed default type
     visibility: { type: String, default: '' },
     created_at: { type: Date, default: Date.now },
+    likes: {
+      type: [
+        {
+          email: { type: String, required: true }, // User's email
+          name: { type: String, required: true }, // User's name
+        },
+      ],
+      default: [], // 🟢 Ensures likes is always an empty array by default
+    },
+
+    comments: {
+      type: [
+        {
+          email: { type: String, required: true }, // User's email
+          name: { type: String, required: true }, // User's name
+          text: { type: String, required: true }, // Comment text
+          createdAt: { type: Date, default: Date.now }, // Timestamp
+        },
+      ],
+      default: [], // 🟢 Ensures comments is always an empty array by default
+    },
+
+    shares: {
+      type: Number,
+      default: 0, // 🟢 Ensures shares starts at 0 by default
+    },
   }],
   
 });

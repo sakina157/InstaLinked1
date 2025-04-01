@@ -1,18 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useSocket } from '../context/SocketContext';
 import { FaTimes } from 'react-icons/fa';
+import { useNavigate } from 'react-router-dom';
 
-const Notification = ({ show, onClose }) => {
-    const navigate = useNavigate();
+
+const Notification = () => {
+
     const { notifications, setNotifications, setUnreadCount } = useSocket();
     const [loading, setLoading] = useState(false);
+    const [activeFilter, setActiveFilter] = useState('All');
+    const navigate = useNavigate();
+
+    const handleClose = () => {
+        navigate('/home'); // Navigate to the home page
+    };
 
     useEffect(() => {
-        if (show) {
-            fetchNotifications();
-        }
-    }, [show]);
+        fetchNotifications();
+    }, []);
 
     const fetchNotifications = async () => {
         try {
@@ -57,15 +62,16 @@ const Notification = ({ show, onClose }) => {
     const handleFollowBack = async (senderId) => {
         try {
             const user = JSON.parse(localStorage.getItem('user'));
-            const response = await fetch('http://localhost:5500/api/follow', {
+            const response = await fetch(`http://localhost:5500/api/follow/${senderId}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
                 credentials: 'include',
-                body: JSON.stringify({
-                    userId: user._id,
-                    targetUserId: senderId
+            body: JSON.stringify({
+                followerId: user._id, // Change this to send followerId
+                targetUserId: senderId
+
                 })
             });
 
@@ -112,121 +118,294 @@ const Notification = ({ show, onClose }) => {
 
         // Navigate to sender's profile
         navigate(`/profile/${notification.sender._id}`);
-        onClose();
+        
+    };
+    const handleFilterClick = (filter) => {
+        setActiveFilter(filter);
     };
 
-    if (!show) return null;
+    const getNotificationsByDate = (notifications, daysAgo) => {
+        const date = new Date();
+        date.setDate(date.getDate() - daysAgo);
+        return notifications.filter(notif => {
+            const notificationDate = new Date(notif.createdAt);
+            return notificationDate.toDateString() === date.toDateString();
+        });
+    };
+
+    const getPreviousNotifications = (notifications) => {
+        const today = new Date();
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        return notifications.filter(notif => {
+            const notificationDate = new Date(notif.createdAt);
+            return notificationDate.toDateString() !== today.toDateString() && notificationDate.toDateString() !== yesterday.toDateString();
+        });
+    };
 
     return (
-        <div style={styles.overlay}>
-            <div style={styles.modal}>
-                <div style={styles.header}>
-                    <h3>Notifications</h3>
-                    <button style={styles.closeButton} onClick={onClose}>
-                        <FaTimes />
-                    </button>
+        <div style={styles.container}>
+            <div style={styles.header}>
+                    <h3 style={styles.headerTitle}>Notifications</h3>
+                    <button 
+                    style={styles.closeButton}
+                    onClick={handleClose}
+                >
+                    <FaTimes />
+                </button>
+                    </div>
+                    <div style={styles.toolbox}>
+                    <button 
+                    style={activeFilter === 'All' ? styles.activeToolboxButton : styles.toolboxButton}
+                    onClick={() => handleFilterClick('All')}
+                >
+                    All
+                </button>    
+                <button 
+                    style={activeFilter === 'Mentions' ? styles.activeToolboxButton : styles.toolboxButton}
+                    onClick={() => handleFilterClick('Mentions')}
+                >
+                    Mentions
+                </button>
+                <button 
+                    style={activeFilter === 'Comments' ? styles.activeToolboxButton : styles.toolboxButton}
+                    onClick={() => handleFilterClick('Comments')}
+                >
+                    Comments
+                </button>
+                <button 
+                    style={activeFilter === 'Likes' ? styles.activeToolboxButton : styles.toolboxButton}
+                    onClick={() => handleFilterClick('Likes')}
+                >
+                    Likes
+                </button>
+                <button 
+                    style={activeFilter === 'Follows' ? styles.activeToolboxButton : styles.toolboxButton}
+                    onClick={() => handleFilterClick('Follows')}
+                >
+                    Follows
+                </button>
                 </div>
-                <div style={styles.content}>
+                
                     {loading ? (
                         <div style={styles.loading}>Loading notifications...</div>
                     ) : notifications.length === 0 ? (
                         <div style={styles.empty}>No notifications yet</div>
                     ) : (
-                        notifications.map(notification => (
-                            <div key={notification._id} style={styles.notificationItem}>
-                                <div 
-                                    style={styles.notificationContent}
-                                    onClick={() => handleNotificationClick(notification)}
-                                >
-                                    <img 
-                                        src={notification.sender.profileImage || "/default-avatar.png"} 
-                                        alt="" 
-                                        style={styles.avatar}
-                                    />
-                                    <div style={styles.notificationText}>
-                                        <span style={styles.username}>{notification.sender.username}</span>
-                                        <span>{notification.content}</span>
-                                        <span style={styles.time}>
-                                            {new Date(notification.createdAt).toLocaleDateString()}
-                                        </span>
-                                    </div>
-                                </div>
-                                <div style={styles.actions}>
-                                    {notification.type === 'follow' && !notification.isFollowingBack && (
-                                        <button 
-                                            style={styles.followButton}
-                                            onClick={() => handleFollowBack(notification.sender._id)}
-                                        >
-                                            Follow Back
-                                        </button>
-                                    )}
-                                    <button 
-                                        style={styles.deleteButton}
-                                        onClick={() => handleDeleteNotification(notification._id)}
-                                    >
-                                        <FaTimes />
-                                    </button>
-                                </div>
-                            </div>
-                        ))
+                        <div style={styles.notificationsContainer}>
+                    {getNotificationsByDate(notifications, 0).length > 0 && (
+    <div style={styles.section}>
+        <h4 style={styles.sectionTitle}>Today</h4>
+        {getNotificationsByDate(notifications, 0).map(notification => (
+            <div key={notification._id} style={styles.notificationItem}>
+                <div 
+                    style={styles.notificationContent}
+                    onClick={() => handleNotificationClick(notification)}
+                >
+                    <img 
+                        src={notification.sender.profileImage || "/default-avatar.png"} 
+                        alt="" 
+                        style={styles.avatar}
+                    />
+                    <div style={styles.notificationText}>
+                        <span style={styles.username}>{notification.sender.username}</span>
+                        <span>{notification.content}</span>
+                        <span style={styles.time}>
+                            {new Date(notification.createdAt).toLocaleTimeString()}
+                        </span>
+                    </div>
+                </div>
+                <div style={styles.actions}>
+                    {notification.type === 'follow' && !notification.isFollowingBack && (
+                        <button 
+                            style={styles.followButton}
+                            onClick={() => handleFollowBack(notification.sender._id)}
+                        >
+                            Follow Back
+                        </button>
                     )}
+                    <button 
+                        style={styles.deleteButton}
+                        onClick={() => handleDeleteNotification(notification._id)}
+                    >
+                        <FaTimes />
+                    </button>
                 </div>
             </div>
+        ))}
+    </div>
+)}
+                    {getNotificationsByDate(notifications, 1).length > 0 && (
+                        <div style={styles.section}>
+                            <h4 style={styles.sectionTitle}>Yesterday</h4>
+                            {getNotificationsByDate(notifications, 1).map(notification => (
+                                <div key={notification._id} style={styles.notificationItem}>
+                                    <div 
+                                        style={styles.notificationContent}
+                                        onClick={() => handleNotificationClick(notification)}
+                                    >
+                                        <img 
+                                            src={notification.sender.profileImage || "/default-avatar.png"} 
+                                            alt="" 
+                                            style={styles.avatar}
+                                        />
+                                        <div style={styles.notificationText}>
+                                            <span style={styles.username}>{notification.sender.username}</span>
+                                            <span>{notification.content}</span>
+                                            <span style={styles.time}>
+                                                {new Date(notification.createdAt).toLocaleTimeString()}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div style={styles.actions}>
+                                        {notification.type === 'follow' && !notification.isFollowingBack && (
+                                            <button 
+                                                style={styles.followButton}
+                                                onClick={() => handleFollowBack(notification.sender._id)}
+                                            >
+                                                Follow Back
+                                            </button>
+                                        )}
+                                        <button 
+                                            style={styles.deleteButton}
+                                            onClick={() => handleDeleteNotification(notification._id)}
+                                        >
+                                            <FaTimes />
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
+                    {getPreviousNotifications(notifications).length > 0 && (
+                        <div style={styles.section}>
+                            <h4 style={styles.sectionTitle}>Previous</h4>
+                            {getPreviousNotifications(notifications).map(notification => (
+                                <div key={notification._id} style={styles.notificationItem}>
+                                    <div 
+                                        style={styles.notificationContent}
+                                        onClick={() => handleNotificationClick(notification)}
+                                    >
+                                        <img 
+                                            src={notification.sender.profileImage || "/default-avatar.png"} 
+                                            alt="" 
+                                            style={styles.avatar}
+                                        />
+                                        <div style={styles.notificationText}>
+                                            <span style={styles.username}>{notification.sender.username}</span>
+                                            <span>{notification.content}</span>
+                                            <span style={styles.time}>
+                                                {new Date(notification.createdAt).toLocaleDateString()}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div style={styles.actions}>
+                                        {notification.type === 'follow' && !notification.isFollowingBack && (
+                                            <button 
+                                                style={styles.followButton}
+                                                onClick={() => handleFollowBack(notification.sender._id)}
+                                            >
+                                                Follow Back
+                                            </button>
+                                        )}
+                                        <button 
+                                            style={styles.deleteButton}
+                                            onClick={() => handleDeleteNotification(notification._id)}
+                                        >
+                                            <FaTimes />
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
         </div>
     );
 };
 
 const styles = {
-    overlay: {
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.7)',
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'flex-start',
-        paddingTop: '60px',
-        zIndex: 1000
-    },
-    modal: {
-        backgroundColor: 'white',
-        borderRadius: '8px',
-        width: '400px',
-        maxHeight: '80vh',
-        display: 'flex',
-        flexDirection: 'column'
+    container: {
+        maxWidth: '500px',
+        margin: '0 auto',
+        padding: '15px',
+        backgroundColor: '#f4f2ee',
+        minHeight: '100vh',
     },
     header: {
+        backgroundColor: '#006d77',
+        color: '#ffffff',
         padding: '16px',
-        borderBottom: '1px solid #dbdbdb',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center'
+        alignItems: 'center',
+        marginBottom: '20px',
+        borderRadius: '8px 8px 0 0',
+    },
+    headerTitle: {
+        margin: 0,
     },
     closeButton: {
         background: 'none',
         border: 'none',
         cursor: 'pointer',
-        fontSize: '18px'
+        color: '#ffffff', 
+        fontSize: '20px', // Adjust size as needed
+        padding: '0',
+        display: 'flex',
+        alignItems: 'center',
     },
-    content: {
-        overflowY: 'auto',
-        padding: '8px 0'
+    toolbox: {
+        display: 'flex',
+        justifyContent: 'center',
+        gap: '10px',
+        padding: '16px',
+        borderRadius: '0 0 8px 8px',
+        marginBottom: '20px',
+    },
+    toolboxButton: {
+        padding: '8px 16px',
+        backgroundColor: 'transparent',
+        color: '#000000',
+        border: '1px solid #006d77',
+        borderRadius: '20px',
+        cursor: 'pointer',
+        fontSize: '14px',
+    },
+    activeToolboxButton: {
+        padding: '8px 16px',
+        backgroundColor: '#80b6bb',
+        color: '#ffffff',
+        border: '1px solid #80b6bb',
+        borderRadius: '20px',
+        cursor: 'pointer',
+        fontSize: '14px',
+    },
+    notificationsContainer: {
+        borderRadius: '8px',
+        padding: '16px',
     },
     notificationItem: {
-        padding: '12px 16px',
+        padding: '10px 10px',
         borderBottom: '1px solid #efefef',
         display: 'flex',
         justifyContent: 'space-between',
-        alignItems: 'center'
+        alignItems: 'center',
+        backgroundColor: '#ffffff',
+        marginBottom: '10px',
     },
     notificationContent: {
         display: 'flex',
         alignItems: 'center',
         flex: 1,
-        cursor: 'pointer'
+        cursor: 'pointer',
+    },
+    section: {
+        marginBottom: '20px',
+    },
+    sectionTitle: {
+        marginBottom: '16px',
+        color: '#000000',
     },
     avatar: {
         width: '44px',
@@ -250,7 +429,7 @@ const styles = {
     actions: {
         display: 'flex',
         alignItems: 'center',
-        gap: '8px'
+        gap: '8px',
     },
     followButton: {
         backgroundColor: '#006d77',
@@ -280,4 +459,4 @@ const styles = {
     }
 };
 
-export default Notification; 
+export default Notification;

@@ -43,6 +43,12 @@ const CreatePost = () => {
       return;
     }
 
+    // Client-side validation
+  if (file.size > 25 * 1024 * 1024) {
+    alert("File size exceeds 25MB limit!");
+    return;
+  }
+
     const formData = new FormData();
     formData.append("email", userObject.email);
     formData.append("file", file);
@@ -53,23 +59,34 @@ const CreatePost = () => {
     formData.append("type", selectedType);
     formData.append("category", selectedCategory);
 
-    console.log("📂 FormData Contents:");
+    console.log("📂 FormData Contents before sending request:");
     for (let [key, value] of formData.entries()) {
       console.log(`${key}:`, value);
     }
 
     try {
-      const response = await axios.post("/api/posts", formData, {
+    
+    const response = await axios.post("http://localhost:5500/api/create-post", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
       if (response.status === 201) {
         alert("Post published successfully!");
-        handleReset();
+        navigate("/home");
       }
     } catch (error) {
-      console.error("❌ Error publishing post:", error);
-      alert("Failed to publish post. Please try again.");
+      console.error("Full error:", {
+        response: error.response,
+        request: error.request,
+        message: error.message
+      });
+  
+      const errorMessage = error.response?.data?.error || 
+                          error.response?.data?.details || 
+                          error.message || 
+                          "Failed to publish post";
+      
+      alert(`Error: ${errorMessage}`);
     }
   };
 
@@ -278,10 +295,10 @@ const Dropzone = styled.div`
 `;
 
 const PreviewImage = styled.img`
-  
-
+  max-width: 100%;
+  max-height: 100%; 
   object-fit: cover;
-  border-radius: 5px;
+  border-radius: 2px;
 `;
 
 const TextArea = styled.textarea`

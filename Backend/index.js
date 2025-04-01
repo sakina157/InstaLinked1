@@ -64,9 +64,8 @@ const personaRoutes = require('./routes/persona');
 const contentSelectRoutes = require('./routes/ContentSelect');
 const authRoutes = require('./routes/authRoutes');
 const feedRoutes = require("./routes/feed");
-const uploadRoutes = require("./routes/uploadRoutes");
-const commentRoutes = require("./routes/commentRoutes");
 const CreatePostRoute = require('./routes/CreatePostRoute');
+const PostRoutes = require('./routes/PostRoutes');
 const homesearchRoutes = require("./routes/homesearch");
 const profileRoutes = require("./routes/profile");
 const usernameRoutes = require("./routes/username");
@@ -74,7 +73,6 @@ const exploreRoutes = require('./routes/exploreRoutes');
 const followRoutes = require('./routes/followRoutes');
 
 // ✅ Debugging: Confirm Routes are Loaded
-console.log("✅ Persona route loaded: /api/persona");
 console.log("✅ Homesearch route loaded: /api/homesearch/search");
 console.log("✅ Follow routes loaded: /api/follow");
 
@@ -86,10 +84,9 @@ app.use('/api', personaRoutes);
 app.use('/api', contentSelectRoutes);
 app.use('/api/auth', authRoutes);
 app.use("/api", feedRoutes);
-app.use("/api", uploadRoutes);
 app.use("/api/users", userRoutes);
-app.use("/api/comments", commentRoutes);
-app.use('/api', CreatePostRoute);
+app.use('/api/create-post', CreatePostRoute);
+app.use('/api/posts', PostRoutes);
 app.use("/api/homesearch", homesearchRoutes);
 app.use("/api", profileRoutes);
 app.use("/api", usernameRoutes);
@@ -117,11 +114,7 @@ const deleteUnverifiedUsers = async () => {
 // ✅ Run Cleanup Every 10 Minutes
 setInterval(deleteUnverifiedUsers, 10 * 60 * 1000);
 
-// ✅ Global Error Handler
-app.use((err, req, res, next) => {
-    console.error("❌ Global Error:", err.stack);
-    res.status(500).json({ message: "Something went wrong on the server!" });
-});
+
 
 // ✅ Connect to MongoDB and Start Server
 connectDB()

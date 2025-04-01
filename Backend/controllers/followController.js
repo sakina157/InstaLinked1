@@ -31,6 +31,17 @@ const followUser = async (req, res) => {
             $push: { following: userId }
         });
 
+        // Create notification for the target user
+        const notification = new Notification({
+            recipient: userId,
+            sender: followerId,
+            type: 'follow',
+            content: `${follower.username || follower.email} started following you`,
+            isFollowingBack: true // Set this to true since the user is now following back
+        });
+
+        await notification.save();
+
         res.status(200).json({ message: "Successfully followed user" });
     } catch (error) {
         console.error("Error in followUser:", error);
@@ -99,4 +110,4 @@ module.exports = {
     followUser,
     unfollowUser,
     getFollowStatus
-}; 
+};
