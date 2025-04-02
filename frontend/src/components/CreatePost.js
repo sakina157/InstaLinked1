@@ -44,10 +44,7 @@ const CreatePost = () => {
     }
 
     // Client-side validation
-  if (file.size > 25 * 1024 * 1024) {
-    alert("File size exceeds 25MB limit!");
-    return;
-  }
+
 
     const formData = new FormData();
     formData.append("email", userObject.email);

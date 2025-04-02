@@ -3,19 +3,18 @@ const multer = require("multer");
 const { CloudinaryStorage } = require("multer-storage-cloudinary");
 const cloudinary = require("../cloudinaryConfig");
 const User = require("../models/user");
-const post = require("../models/post");
+const Post = require("../models/post");
 
-const router = express.Router(); // ✅ Missing `express.Router()`
+const router = express.Router(); // ✅ Missing express.Router()
 
 // ✅ Correct Cloudinary Storage Configuration
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: async (req, file) => {
-    console.log("🔄 Uploading File:", file.originalname);
+    console.log("🔄 Uploading File:", cloudinary);
 
     // Extract the format from the MIME type
     let format = file.mimetype.split("/")[1];
-    console.log("📂 File Format:", format);
 
     // Manually set the format for MP3 files
     if (file.mimetype === "audio/mpeg") {
@@ -47,22 +46,21 @@ router.post("/", upload.single("file"), async (req, res) => {
   try {
     const { email, caption, tags, hashtags, visibility, type, category } = req.body;
 
-    // 🚨 Fix: Await User Lookup
+    // 🚨 Fix: Await User1 Lookup
     const user = await User.findOne({ email });
     if (!user) {
       return res.status(404).json({ error: "User not found" });
     }
 
+    // 🚨 Fix: Correct File URL from Cloudinary
     if (!req.file || !req.file.path) {
-      console.log("❌ Cloudinary Upload Failed:", req.file);
-      return res.status(400).json({ error: "File upload failed!", details: req.file });
+      return res.status(400).json({ error: "File upload failed!" });
     }
-
-    console.log("📂 Uploaded File:", req.file.path);
-
+    
+    console.log("📂 Uploaded File:", req.file.url);
 
     // ✅ Save Post to Database
-    const newPost = new post({
+    const newPost = new Post({
       user_email: user.email, // Use MongoDB User ID
       posts: [
         {
@@ -82,7 +80,7 @@ router.post("/", upload.single("file"), async (req, res) => {
 
     res.status(201).json({ message: "Post created successfully!", post: newPost });
   } catch (error) {
-    console.log("❌ Error:", error);
+    console.error("❌ Error:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 });
