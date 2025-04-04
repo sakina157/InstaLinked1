@@ -15,7 +15,7 @@ const storage = new CloudinaryStorage({
 
     // Extract the format from the MIME type
     let format = file.mimetype.split("/")[1];
-
+ 
     // Manually set the format for MP3 files
     if (file.mimetype === "audio/mpeg") {
       format = "mp3";
