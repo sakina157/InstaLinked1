@@ -5,6 +5,8 @@ import default_user from '../images/default_user.jpg';
 import HomeNavbar from "./HomeNavbar";
 import disk from '../images/disk.jpg';
 import { useRef } from "react";
+import PostPopup from './PostPopup';
+import { FaHeart, FaRegComment, FaRegHeart } from 'react-icons/fa';
 
 // Change the default profile image to use local image instead of Cloudinary
 const DEFAULT_PROFILE_IMAGE = default_user;
@@ -20,6 +22,8 @@ const HomePage = () => {
   const videoRefs = useRef({});
   const [page, setPage] = useState(1);
   const location = useLocation();
+  const [selectedPost, setSelectedPost] = useState(null);
+  const [showComments, setShowComments] = useState(false);
 
   const mediaStyle = useMemo(() => ({
     width: '100%',
@@ -62,37 +66,33 @@ const HomePage = () => {
   // Fetch feed data
   const fetchHomepagePosts = useCallback(async () => {
     try {
-      const response = await axios.get("http://localhost:5500/api/feed/homepage");
+      // If we're on a profile page, fetch only that user's posts
+      const email = location.pathname.startsWith('/profile/') 
+        ? location.pathname.split('/profile/')[1]
+        : null;
+
+      const response = await axios.get("http://localhost:5500/api/feed/homepage", {
+        params: { email }
+      });
+
       if (Array.isArray(response.data)) {
-        const arranged = arrangeHomepagePosts(response.data);
-        setPosts(arranged);
-        setFilteredPosts(arranged);
-        localStorage.setItem('homepagePosts', JSON.stringify(arranged));
+        setPosts(response.data);
+        setFilteredPosts(response.data);
       }
     } catch (error) {
       console.error('Error fetching homepage posts:', error);
     }
-  }, []);
+  }, [location.pathname]);
 
   useEffect(() => {
     fetchUserData();
   }, [fetchUserData]);
 
   useEffect(() => {
-    if (window.performance.getEntriesByType("navigation")[0].type === "reload") {
+    // Always fetch fresh data when navigating or reloading
       localStorage.removeItem("homepagePosts");
       fetchHomepagePosts();
-    } else {
-      const storedPosts = localStorage.getItem('homepagePosts');
-      if (storedPosts) {
-        const parsedPosts = JSON.parse(storedPosts);
-        setPosts(parsedPosts);
-        setFilteredPosts(parsedPosts);
-      } else {
-        fetchHomepagePosts();
-      }
-    }
-  }, [fetchHomepagePosts]);
+  }, [fetchHomepagePosts, location]);
 
   useEffect(() => {
     if (selectedCategory) {
@@ -103,24 +103,23 @@ const HomePage = () => {
     }
   }, [selectedCategory, posts]);
 
-  const getUserData = useCallback((post) => ({
-    fullName: post.user?.fullName || "Demo User",
-    profileImage: post.user?.profileImage || DEFAULT_PROFILE_IMAGE
-  }), []);
-
   const renderMedia = useCallback((post) => {
-    const postStyle = {
-      ...mediaStyle,
-      marginBottom: post.marginBottom || '20px'
+    const style = {
+      width: '100%',
+      maxWidth: '600px',
+      maxHeight: '600px',
+      objectFit: 'contain',
+      borderRadius: '0',
+      marginBottom: 0
     };
 
-    switch (post.content_type) {
+    switch (post.content_type?.toLowerCase()) {
       case 'image':
         return (
           <img
             src={post.url}
             alt={post.caption}
-            style={postStyle}
+            style={style}
             loading="lazy"
           />
         );
@@ -128,21 +127,22 @@ const HomePage = () => {
         return (
           <video
             src={post.url}
-            style={postStyle}
+            style={style}
             controls
             autoPlay={post.autoPlay}
             muted={post.autoPlay}
             loop
             playsInline
+            ref={el => videoRefs.current[post._id] = el}
           />
         );
       case 'audio':
         return (
-          <div style={{ marginBottom: post.marginBottom || '20px' }}>
+          <div style={{ padding: '10px' }}>
             <img
-              src={disk}
+              src={post.thumbnail || disk}
               alt="Audio thumbnail"
-              style={{ width: '100%', maxWidth: '470px', borderRadius: '8px' }}
+              style={{ ...style, height: '200px' }}
             />
             <audio
               src={post.url}
@@ -153,11 +153,11 @@ const HomePage = () => {
         );
       case 'pdf':
         return (
-          <div style={{ marginBottom: post.marginBottom || '20px' }}>
+          <div style={{ padding: '10px' }}>
             <img
               src={post.thumbnail || DEFAULT_PROFILE_IMAGE}
               alt="PDF thumbnail"
-              style={{ width: '100%', maxWidth: '470px', borderRadius: '8px' }}
+              style={{ ...style, height: '200px' }}
             />
             <a
               href={post.url}
@@ -172,48 +172,177 @@ const HomePage = () => {
       default:
         return null;
     }
-  }, [mediaStyle]);
+  }, []);
+
+  const handleUsernameClick = (userEmail, e) => {
+    e.stopPropagation();
+    if (userEmail) {
+      navigate(`/profile/${userEmail}`);
+    }
+  };
 
   const renderPost = useCallback((post) => {
-    const user = getUserData(post);
+    const isLiked = post.likes?.some(like => like.email === storedUser.email);
+
+    const handleLike = async (e) => {
+      e.stopPropagation(); // Prevent post click event
+      try {
+        const response = await axios.post(`http://localhost:5500/api/posts/${post._id}/like`, {
+          email: storedUser.email,
+          name: storedUser.username
+        });
+
+        if (response.data) {
+          setPosts(prevPosts => 
+            prevPosts.map(p => 
+              p._id === post._id 
+                ? { ...p, likes: response.data.likes }
+                : p
+            )
+          );
+        }
+      } catch (error) {
+        console.error("Error liking post:", error);
+      }
+    };
+
+    const handleCommentClick = (e) => {
+      e.stopPropagation(); // Prevent post click event
+      setSelectedPost(post);
+      setShowComments(true);
+    };
 
     return (
-      <div key={post._id} className="post-container" style={{ marginBottom: post.marginBottom || '20px' }}>
-        <div className="post-header">
-          <span className="username">{user.fullName}</span>
-        </div>
-        
-        {post.isCarousel ? (
-          <div className="carousel-container">
-            {post.carouselImages?.map((image, index) => (
-              <img
-                key={index}
-                src={`https://res.cloudinary.com/do4ekgroe/${image}`}
-                alt={`Carousel image ${index + 1}`}
-                style={mediaStyle}
-                onError={(e) => {
-                  e.target.onerror = null;
-                  e.target.style.display = 'none';
-                }}
-              />
-            ))}
+      <div key={post._id} className="post" style={{ 
+        marginBottom: '20px',
+        backgroundColor: 'white',
+        borderRadius: '8px',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
+        width: '100%',
+        maxWidth: '600px',
+        margin: '0 auto 20px'
+      }}>
+        <div style={{ 
+          display: 'flex', 
+          alignItems: 'center',
+          padding: '14px',
+          borderBottom: '1px solid #efefef'
+        }}>
+          <img 
+            src={post.user?.profileImage || DEFAULT_PROFILE_IMAGE} 
+            alt={post.user?.username || "User"} 
+            style={{ 
+              width: '32px', 
+              height: '32px', 
+              borderRadius: '50%', 
+              marginRight: '10px',
+              objectFit: 'cover'
+            }} 
+            onClick={(e) => handleUsernameClick(post.user_email || post.user?.email, e)}
+          />
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <span 
+              className="username" 
+              style={{ 
+                fontWeight: '600',
+                fontSize: '14px',
+                cursor: 'pointer'
+              }} 
+              onClick={(e) => handleUsernameClick(post.user_email || post.user?.email, e)}
+            >
+              {post.user?.username || post.username || "User"}
+            </span>
+            <span style={{ fontSize: '12px', color: '#8e8e8e' }}>
+              {new Date(post.created_at).toLocaleString()}
+            </span>
           </div>
-        ) : (
-          renderMedia(post)
-        )}
-
-        <div className="post-actions">
-          <div className="likes">{post.likes || 0} likes</div>
-          <div className="comments">{post.comments || 0} comments</div>
         </div>
         
-        <div className="post-caption">
-          <span className="username">{user.fullName}</span>
-          {post.caption}
+        <div style={{ 
+          width: '100%', 
+          position: 'relative',
+          display: 'flex',
+          justifyContent: 'center',
+          backgroundColor: '#fafafa'
+        }}>
+          {renderMedia({ ...post, style: { 
+            maxHeight: '600px',
+            width: '100%',
+            objectFit: 'contain'
+          }})}
+        </div>
+        
+        <div style={{ padding: '12px' }}>
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center',
+            marginBottom: '8px'
+          }}>
+            <button 
+              onClick={handleLike}
+              style={{ 
+                background: 'none',
+                border: 'none',
+                padding: '8px',
+                cursor: 'pointer',
+                marginRight: '16px'
+              }}
+            >
+              {isLiked ? (
+                <FaHeart style={{ fontSize: '24px', color: '#ed4956' }} />
+              ) : (
+                <FaRegHeart style={{ fontSize: '24px' }} />
+              )}
+            </button>
+            <button 
+              onClick={handleCommentClick}
+              style={{ 
+                background: 'none',
+                border: 'none',
+                padding: '8px',
+                cursor: 'pointer'
+              }}
+            >
+              <FaRegComment style={{ fontSize: '24px' }} />
+            </button>
+          </div>
+
+          <div style={{ marginBottom: '8px', fontWeight: '600', fontSize: '14px' }}>
+            {post.likes?.length || 0} likes
+          </div>
+
+          {post.caption && (
+            <p style={{ margin: '0 0 8px 0', fontSize: '14px' }}>
+              <span style={{ fontWeight: '600', marginRight: '4px' }}>
+                {post.user?.username || post.username}
+              </span>
+              {post.caption}
+            </p>
+          )}
+          
+          <button 
+            onClick={handleCommentClick}
+            style={{ 
+              background: 'none',
+              border: 'none',
+              padding: '0',
+              fontSize: '14px',
+              color: '#8e8e8e',
+              cursor: 'pointer'
+            }}
+          >
+            View all {post.comments?.length || 0} comments
+          </button>
         </div>
       </div>
     );
-  }, [getUserData, renderMedia, mediaStyle]);
+  }, [storedUser.email, storedUser.username, handleUsernameClick, renderMedia]);
+
+  const handleUserClick = (userId) => {
+    if (userId) {
+      navigate(`/profile/${userId}`);
+    }
+  };
 
   const arrangeHomepagePosts = useCallback((posts) => {
     return posts.slice(0, 120);
@@ -329,6 +458,17 @@ const HomePage = () => {
       </div>
     </div>
     
+    {/* Post Popup for Comments */}
+    {selectedPost && showComments && (
+      <PostPopup
+        post={selectedPost}
+        onClose={() => {
+          setSelectedPost(null);
+          setShowComments(false);
+        }}
+        isCurrentUser={selectedPost.user_email === storedUser.email}
+      />
+    )}
     </>
   );
 
@@ -522,6 +662,25 @@ const styles = {
     width: "90%",
     zIndex: 2,
   },
+  postHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    padding: '10px',
+    gap: '10px'
+  },
+  userAvatar: {
+    width: '32px',
+    height: '32px',
+    borderRadius: '50%',
+    objectFit: 'cover'
+  },
+  userName: {
+    fontWeight: 'bold',
+    cursor: 'pointer',
+    '&:hover': {
+      textDecoration: 'underline'
+    }
+  }
 };
 
 export default HomePage;

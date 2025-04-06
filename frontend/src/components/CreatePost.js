@@ -53,7 +53,7 @@ const CreatePost = () => {
     formData.append("tags", tags);
     formData.append("hashtags", hashtags);
     formData.append("visibility", visibility);
-    formData.append("type", selectedType);
+    formData.append("type", selectedType.toLowerCase());
     formData.append("category", selectedCategory);
 
     console.log("📂 FormData Contents before sending request:");
@@ -68,8 +68,10 @@ const CreatePost = () => {
       });
 
       if (response.status === 201) {
+        // Clear cached posts to ensure fresh data is fetched
+        localStorage.removeItem('homepagePosts');
         alert("Post published successfully!");
-        navigate("/home");
+        navigate("/home", { state: { fromCreatePost: true } });
       }
     } catch (error) {
       console.error("Full error:", {

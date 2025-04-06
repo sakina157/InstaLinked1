@@ -1,8 +1,12 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { FaShareAlt, FaTimes } from "react-icons/fa";
+import { FaShareAlt, FaTimes, FaHeart, FaRegComment } from "react-icons/fa";
 import HomeNavbar from './HomeNavbar';
 import FollowButton from './FollowButton';
+import disk from '../images/disk.jpg';
+import axios from 'axios';
+import default_user from '../images/default_user.jpg';
+import PostPopup from './PostPopup';
 
 const ViewProfile = () => {
   const { userId } = useParams();
@@ -16,6 +20,86 @@ const ViewProfile = () => {
   const [followingList, setFollowingList] = useState([]);
   const [loadingFollowers, setLoadingFollowers] = useState(false);
   const [loadingFollowing, setLoadingFollowing] = useState(false);
+  const [error, setError] = useState(null);
+  const [selectedPost, setSelectedPost] = useState(null);
+
+  // Get logged in user from localStorage
+  useEffect(() => {
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) {
+      const parsedUser = JSON.parse(storedUser);
+      setLoggedInUser(parsedUser);
+    }
+  }, []);
+
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        // Get the stored user to check if this is the logged-in user's profile
+        const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
+        
+        // If userId matches stored user's email or ID, use stored user data
+        const isLoggedInUser = storedUser.email === userId || storedUser._id === userId;
+        
+        let userResponse;
+        if (isLoggedInUser) {
+          // If it's the logged-in user, get fresh data
+          userResponse = await axios.get(`http://localhost:5500/api/user/data`, {
+            params: { email: storedUser.email }
+          });
+        } else {
+          // Try to get user data by email first
+          try {
+            userResponse = await axios.get(`http://localhost:5500/api/user/data`, {
+              params: { email: userId }
+            });
+          } catch (err) {
+            // If email lookup fails, try by ID
+            userResponse = await axios.get(`http://localhost:5500/api/user/${userId}`);
+          }
+        }
+        
+        if (!userResponse.data) {
+          throw new Error('User not found');
+        }
+
+        // Get user's posts using their email
+        const postsResponse = await axios.get('http://localhost:5500/api/feed/homepage', {
+          params: { email: userResponse.data.email }
+        });
+        
+        // Set user data with their posts
+        const userData = {
+          ...userResponse.data,
+          posts: postsResponse.data || [],
+          isCurrentUser: isLoggedInUser
+        };
+
+        setUser(userData);
+        
+        // If this is the logged-in user, update localStorage
+        if (isLoggedInUser) {
+          localStorage.setItem("user", JSON.stringify({
+            ...storedUser,
+            ...userResponse.data
+          }));
+        }
+
+      } catch (err) {
+        console.error('Error fetching profile:', err);
+        setError('User not found');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (userId) {
+      fetchUserData();
+    }
+  }, [userId]);
 
   // Fetch followers/following lists
   const fetchFollowersList = async () => {
@@ -161,55 +245,6 @@ const ViewProfile = () => {
     }
   };
 
-  // Update useEffect for logged in user to also fetch full user data
-  useEffect(() => {
-    const fetchLoggedInUserData = async () => {
-    const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-        const parsedUser = JSON.parse(storedUser);
-        // Fetch complete user data including following/followers
-        try {
-          const response = await fetch(`http://localhost:5500/api/user/${parsedUser._id}`, {
-            credentials: 'include',
-            headers: {
-              'Accept': 'application/json',
-              'Content-Type': 'application/json'
-            }
-          });
-          if (response.ok) {
-            const userData = await response.json();
-            setLoggedInUser(userData);
-          } else {
-            setLoggedInUser(parsedUser);
-          }
-        } catch (error) {
-          console.error("Error fetching logged in user data:", error);
-          setLoggedInUser(parsedUser);
-        }
-      }
-    };
-    fetchLoggedInUserData();
-  }, []);
-
-  useEffect(() => {
-    const fetchUserData = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch(`http://localhost:5500/api/user/${userId}`);
-        const data = await response.json();
-        setUser(data);
-      } catch (error) {
-        console.error("Error fetching user data:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (userId) {
-      fetchUserData();
-    }
-  }, [userId]);
-
   // Update UserListModal component
   const UserListModal = ({ show, onClose, title, users, loading }) => {
     if (!show) return null;
@@ -301,8 +336,123 @@ const ViewProfile = () => {
     );
   };
 
-  if (loading) return <p>Loading profile...</p>;
-  if (!user) return <p>User not found</p>;
+  const renderPostPreview = useCallback((post) => {
+    switch (post.content_type?.toLowerCase()) {
+      case 'image':
+        return (
+          <div 
+            key={post._id}
+            style={styles.postCard}
+            onClick={() => setSelectedPost({
+              ...post,
+              user: {
+                profileImage: user?.profileImage,
+                username: user?.username,
+                email: user?.email
+              }
+            })}
+          >
+            <img 
+              src={post.url} 
+              alt={post.caption} 
+              style={styles.postPreviewImage}
+            />
+          </div>
+        );
+      case 'video':
+        return (
+          <div 
+            key={post._id}
+            style={styles.postCard}
+            onClick={() => setSelectedPost({
+              ...post,
+              user: {
+                profileImage: user?.profileImage,
+                username: user?.username,
+                email: user?.email
+              }
+            })}
+          >
+            <div style={styles.postPreviewVideo}>
+              <video src={post.url} style={styles.postPreviewImage} />
+              <div style={styles.playIcon}>▶️</div>
+            </div>
+          </div>
+        );
+      case 'audio':
+        return (
+          <div 
+            key={post._id}
+            style={styles.postCard}
+            onClick={() => setSelectedPost({
+              ...post,
+              user: {
+                profileImage: user?.profileImage,
+                username: user?.username,
+                email: user?.email
+              }
+            })}
+          >
+            <div style={styles.postPreviewAudio}>
+              <img src={disk} alt="Audio thumbnail" style={styles.postPreviewImage} />
+              <div style={styles.audioIcon}>🎵</div>
+            </div>
+          </div>
+        );
+      default:
+        return (
+          <div 
+            key={post._id}
+            style={styles.postCard}
+            onClick={() => setSelectedPost({
+              ...post,
+              user: {
+                profileImage: user?.profileImage,
+                username: user?.username,
+                email: user?.email
+              }
+            })}
+          >
+            <div style={styles.postPreviewDefault}>
+              <span>📄 {post.content_type}</span>
+            </div>
+          </div>
+        );
+    }
+  }, [user]);
+
+  if (loading) {
+    return (
+      <>
+        <HomeNavbar />
+        <div style={{ textAlign: 'center', padding: '20px' }}>
+          Loading profile...
+        </div>
+      </>
+    );
+  }
+
+  if (error) {
+    return (
+      <>
+        <HomeNavbar />
+        <div style={{ textAlign: 'center', padding: '20px', color: 'red' }}>
+          {error}
+        </div>
+      </>
+    );
+  }
+
+  if (!user) {
+    return (
+      <>
+        <HomeNavbar />
+        <div style={{ textAlign: 'center', padding: '20px' }}>
+          User not found
+        </div>
+      </>
+    );
+  }
 
   return (
     <>
@@ -313,12 +463,12 @@ const ViewProfile = () => {
         {/* Profile Section */}
         <div style={styles.profileCard}>
           <img
-            src={user?.profilePicture || "default-avatar.png"}
+            src={user?.profileImage || default_user}
             alt="Profile"
             style={styles.profileImage}
           />
           <div style={styles.userInfo}>
-            <h2 style={styles.name}>{user?.email || "No Email Available"}</h2>
+            <h2 style={styles.name}>{user?.username || user?.email || "No Name Available"}</h2>
             <p style={styles.username}>@{user?.username || "N/A"}</p>
             <p style={styles.job}>{user?.jobTitle || "No Job"} at {user?.company || "Unknown Company"}</p>
             <p style={styles.location}>{user?.location || "Location Unavailable"}</p>
@@ -344,14 +494,14 @@ const ViewProfile = () => {
                 </span>
             </div>
             <div style={styles.buttons}>
-                {loggedInUser?._id === user?._id ? (
+                {user?.isCurrentUser ? (
                 <button style={styles.editButton} onClick={() => navigate("/create-profile")}>
                   Edit Profile
                 </button>
                 ) : (
                   <>
                     <FollowButton 
-                      targetUserId={user._id} 
+                      targetUserId={user?._id} 
                       onFollowChange={(isFollowing) => {
                         setUser(prev => ({
                           ...prev,
@@ -390,12 +540,7 @@ const ViewProfile = () => {
           <h3>Posts</h3>
           <div style={styles.postGrid}>
             {Array.isArray(user?.posts) && user.posts.length > 0 ? (
-              user.posts.map((post, index) => (
-                <div key={index} style={styles.postCard}>
-                  <p>{post.title}</p>
-                  <span>{post.date}</span>
-                </div>
-              ))
+              user.posts.map((post) => renderPostPreview(post))
             ) : (
               <p>No posts available.</p>
             )}
@@ -450,6 +595,21 @@ const ViewProfile = () => {
         users={followingList}
         loading={loadingFollowing}
       />
+
+      {/* Post Popup */}
+      {selectedPost && (
+        <PostPopup
+          post={selectedPost}
+          onClose={() => setSelectedPost(null)}
+          isCurrentUser={selectedPost.user_email === loggedInUser?.email}
+        />
+      )}
+
+      <style jsx>{`
+        .post-preview:hover .post-hover-overlay {
+          opacity: 1;
+        }
+      `}</style>
     </>
   );
 };
@@ -486,10 +646,11 @@ const styles = {
     alignItems: "center",
   },
   profileImage: {
-    width: "90px",
-    height: "90px",
+    width: "150px",
+    height: "150px",
     borderRadius: "50%",
-    marginRight: "20px",
+    marginRight: "30px",
+    objectFit: "cover"
   },
   userInfo: {
     flex: 1,
@@ -614,15 +775,63 @@ const styles = {
     boxShadow: "0 3px 10px rgba(0, 0, 0, 0.08)",
   },
   postGrid: {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: "15px",
+    display: 'grid',
+    gridTemplateColumns: 'repeat(3, 1fr)',
+    gap: '15px',
+    marginTop: '15px',
   },
   postCard: {
-    backgroundColor: "#fff",
-    padding: "15px",
-    borderRadius: "8px",
-    boxShadow: "0 2px 6px rgba(0, 0, 0, 0.08)",
+    width: '100%',
+    aspectRatio: '1',
+    overflow: 'hidden',
+    cursor: 'pointer',
+    borderRadius: '8px',
+    backgroundColor: '#f8f9fa',
+    position: 'relative',
+  },
+  postPreviewImage: {
+    width: '100%',
+    height: '100%',
+    objectFit: 'cover',
+    borderRadius: '8px',
+  },
+  postPreviewVideo: {
+    position: 'relative',
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#000',
+    borderRadius: '8px',
+  },
+  postPreviewAudio: {
+    position: 'relative',
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#f8f9fa',
+    borderRadius: '8px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  postPreviewDefault: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#f8f9fa',
+    borderRadius: '8px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  playIcon: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    transform: 'translate(-50%, -50%)',
+    fontSize: '32px',
+    color: 'white',
+  },
+  audioIcon: {
+    position: 'absolute',
+    fontSize: '32px',
   },
   clickableStat: {
     cursor: 'pointer',
@@ -718,6 +927,17 @@ const styles = {
     padding: '20px',
     textAlign: 'center',
     color: '#8e8e8e'
+  },
+  loadingSpinner: {
+    textAlign: 'center',
+    padding: '20px',
+    fontSize: '16px'
+  },
+  errorMessage: {
+    textAlign: 'center',
+    padding: '20px',
+    color: '#ff4444',
+    fontSize: '16px'
   }
 };
 

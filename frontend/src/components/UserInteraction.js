@@ -1,116 +1,151 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import styled from "styled-components";
-import { FaHeart, FaRegComment, FaPaperPlane, FaBookmark } from "react-icons/fa";
+import { FaHeart, FaRegHeart, FaRegComment, FaPaperPlane } from "react-icons/fa";
+import { useNavigate } from "react-router-dom";
 
 const CommentSection = ({ currentpost, setCurrentPost }) => {
   const [liked, setLiked] = useState(false);
   const [commentText, setCommentText] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const navigate = useNavigate();
 
   const currentuser = JSON.parse(localStorage.getItem("user"));
+  const user = { email: currentuser.email, name: currentuser.username };
 
-  console.log(currentuser.email,currentuser.fullname)
-  const user = { email: currentuser.email, name: currentuser.fullname };
-
-  // Check if user has already liked the post
   useEffect(() => {
-    setLiked(currentpost.likes.some(like => like.email === user.email));
-  }, [currentpost]);
+    if (currentpost?.likes) {
+      setLiked(currentpost.likes.some(like => like.email === user.email));
+    }
+  }, [currentpost, user.email]);
 
   const handleLike = async () => {
     try {
-      const res = await axios.post(`/api/posts/${currentpost._id}/like`, user);
-      const updatedPost = await axios.get(`/api/posts/${currentpost._id}`);
+      const response = await axios.post(`http://localhost:5500/api/posts/${currentpost._id}/like`, {
+        email: user.email,
+        name: user.name
+      });
 
-      // Update the state with the latest data
-      setCurrentPost(updatedPost.data);
-      console.log("current post",currentpost)
-
-      setLiked(currentpost.likes.some(like => like.email === user.email));
-
-      console.log("Liked Status:", updatedPost.data.likes.includes(user.email));
+      if (response.data && response.data.likes) {
+        setCurrentPost(prev => ({
+          ...prev,
+          likes: response.data.likes
+        }));
+        setLiked(!liked);
+      }
     } catch (error) {
       console.error("Error liking post:", error);
     }
   };
 
   const handleComment = async () => {
-    if (!commentText) return;
+    if (!commentText.trim() || isSubmitting) return;
+    
+    setIsSubmitting(true);
     try {
-      const res = await axios.post(`/api/posts/${currentpost._id}/comment`, {
-        ...user,
-        text: commentText,
+      const postId = currentpost._id;
+      if (!postId) {
+        console.error("No post ID found");
+        return;
+      }
+
+      const response = await axios.post(`http://localhost:5500/api/posts/${postId}/comment`, {
+        email: user.email,
+        name: user.name,
+        text: commentText.trim()
       });
-      setCurrentPost(prev => ({ ...prev, comments: res.data }));
-      setCommentText("");
+
+      if (response.data) {
+        setCurrentPost(prev => ({
+          ...prev,
+          comments: response.data
+        }));
+        setCommentText("");
+      }
     } catch (error) {
       console.error("Error adding comment:", error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const handleShare = async () => {
-    try {
-      const res = await axios.post(`/api/posts/${currentpost._id}/share`);
-      setCurrentPost(prev => ({ ...prev, shares: res.data.shares }));
-    } catch (error) {
-      console.error("Error sharing post:", error);
-    }
+  const handleUsernameClick = (email, e) => {
+    e.stopPropagation();
+    navigate(`/profile/${email}`);
   };
 
-  if (!currentpost) return <p>Loading...</p>;
+  if (!currentpost) return null;
 
   return (
     <>
-      <StatsContainer>
-        <div style={{ display: "flex" }}>
-          <StatItem>
-            <button
-              style={{ border: "none", background: "none" }}
-              onClick={(e) => {
-                e.stopPropagation();
-                handleLike();
-              }}
-            >
-              <FaHeart style={{ color: liked ? "red" : "gray", transition: "color 0.3s ease" }} />
-            </button>
-            {currentpost.likes.length}
-          </StatItem>
-          <StatItem>
-            <button style={{ border: "none", background: "none" }}>
-              <FaRegComment />
-            </button>
-            {currentpost.comments.length}
-          </StatItem>
-          <StatItem>
-            <button style={{ border: "none", background: "none" }} onClick={handleShare}>
-              <FaPaperPlane />
-            </button>
-            {currentpost.shares}
-          </StatItem>
-        </div>
-        <FaBookmark />
-      </StatsContainer>
-
-      <CommentList>
-        {currentpost.comments.map((comment, index) => (
-          <Comment key={index}>
-            <UserImg src={currentuser.profileImage} alt="User" />
+      <CommentsContainer>
+        {currentpost.caption && (
+          <Comment>
+            <UserImg src={currentpost.user?.profileImage} alt="User" />
             <CommentText>
-              <CommentUser>{comment.name}</CommentUser> {comment.text}
-              <CommentTime>{new Date(comment.createdAt).toLocaleString()}</CommentTime>
+              <CommentUser onClick={(e) => handleUsernameClick(currentpost.user_email, e)}>
+                {currentpost.user?.username}
+              </CommentUser> 
+              {currentpost.caption}
+              <CommentTime>{new Date(currentpost.created_at).toLocaleString()}</CommentTime>
+            </CommentText>
+          </Comment>
+        )}
+        
+        {currentpost.comments?.map((comment, index) => (
+          <Comment key={index}>
+            <UserImg 
+              src={comment.email === user.email ? currentuser.profileImage : currentpost.user?.profileImage} 
+              alt={comment.name} 
+            />
+            <CommentText>
+              <CommentUser onClick={(e) => handleUsernameClick(comment.email, e)}>
+                {comment.name}
+              </CommentUser> 
+              {comment.comment}
+              <CommentTime>{new Date(comment.created_at).toLocaleString()}</CommentTime>
             </CommentText>
           </Comment>
         ))}
-      </CommentList>
+      </CommentsContainer>
 
-      <CommentInputContainer>
-        <CommentInput
-          placeholder="Add a comment..."
-          value={commentText}
-          onChange={(e) => setCommentText(e.target.value)}
-        />
-        <PostButton onClick={handleComment}>Post</PostButton>
-      </CommentInputContainer>
+      <BottomSection>
+        <InteractionBar>
+          <LeftIcons>
+            <IconButton onClick={handleLike}>
+              {liked ? <FaHeart color="red" /> : <FaRegHeart />}
+            </IconButton>
+            <IconButton>
+              <FaRegComment />
+            </IconButton>
+            <IconButton>
+              <FaPaperPlane />
+            </IconButton>
+          </LeftIcons>
+        </InteractionBar>
+
+        <LikesCount>{currentpost.likes?.length || 0} likes</LikesCount>
+
+        <CommentInputContainer>
+          <CommentInput
+            placeholder="Add a comment..."
+            value={commentText}
+            onChange={(e) => setCommentText(e.target.value)}
+            onKeyPress={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleComment();
+              }
+            }}
+          />
+          <PostButton 
+            onClick={handleComment}
+            disabled={!commentText.trim() || isSubmitting}
+          >
+            Post
+          </PostButton>
+        </CommentInputContainer>
+      </BottomSection>
     </>
   );
 };
@@ -118,81 +153,118 @@ const CommentSection = ({ currentpost, setCurrentPost }) => {
 export default CommentSection;
 
 // Styled Components
-const StatsContainer = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin: 12px 0;
-  padding: 10px;
-  border-bottom: 1px solid #ddd;
+const CommentsContainer = styled.div`
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
 `;
 
-const StatItem = styled.div`
+const BottomSection = styled.div`
+  border-top: 1px solid #efefef;
+  margin-top: auto;
+`;
+
+const InteractionBar = styled.div`
+  padding: 8px 16px;
   display: flex;
   align-items: center;
-  font-size: 14px;
-  margin-right: 16px;
+`;
+
+const LeftIcons = styled.div`
+  display: flex;
+  gap: 16px;
+`;
+
+const IconButton = styled.button`
+  background: none;
+  border: none;
+  padding: 8px 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  
   svg {
-    margin-right: 6px;
-    font-size: 20px;
+    font-size: 24px;
+    color: #262626;
+  }
+  
+  &:hover {
+    opacity: 0.7;
   }
 `;
 
-const CommentList = styled.div`
-  margin-top: 12px;
-  padding: 10px;
+const LikesCount = styled.div`
+  padding: 0 16px;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 8px;
 `;
 
 const Comment = styled.div`
   display: flex;
-  align-items: flex-start;
-  margin-bottom: 8px;
+  margin-bottom: 12px;
 `;
 
 const UserImg = styled.img`
-  width: 40px;
-  height: 40px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
+  margin-right: 12px;
 `;
 
 const CommentText = styled.div`
-  margin-left: 12px;
+  font-size: 14px;
+  flex: 1;
 `;
 
 const CommentUser = styled.span`
-  font-weight: bold;
-  font-size: 14px;
+  font-weight: 600;
+  margin-right: 6px;
+  cursor: pointer;
+  
+  &:hover {
+    text-decoration: underline;
+  }
 `;
 
-const CommentTime = styled.p`
+const CommentTime = styled.div`
   font-size: 12px;
-  color: #777;
-  margin: 2px 0;
+  color: #8e8e8e;
+  margin-top: 4px;
 `;
 
 const CommentInputContainer = styled.div`
   display: flex;
   align-items: center;
-  margin-top: 16px;
-  padding: 10px;
+  padding: 16px;
+  border-top: 1px solid #efefef;
 `;
 
 const CommentInput = styled.input`
   flex: 1;
-  padding: 8px;
-  border: 1px solid #ddd;
-  border-radius: 20px;
-  font-size: 14px;
+  border: none;
   outline: none;
+  font-size: 14px;
+  padding: 8px 0;
+  
+  &::placeholder {
+    color: #8e8e8e;
+  }
 `;
 
 const PostButton = styled.button`
-  margin-left: 8px;
-  background-color: #008080;
-  color: white;
   border: none;
-  padding: 6px 12px;
-  border-radius: 12px;
+  background: none;
+  color: #0095f6;
+  font-weight: 600;
   font-size: 14px;
+  padding: 8px;
   cursor: pointer;
+  opacity: ${props => props.disabled ? 0.3 : 1};
+  pointer-events: ${props => props.disabled ? 'none' : 'auto'};
+  
+  &:hover:not(:disabled) {
+    color: #00376b;
+  }
 `;
