@@ -4,13 +4,15 @@ const User = require('../models/user');
 // Create a new notification
 const createNotification = async (req, res) => {
     try {
-        const { recipientId, senderId, type, content } = req.body;
+        const { recipientId, senderId, type, content, postId, postImage } = req.body;
 
         const notification = new Notification({
             recipient: recipientId,
             sender: senderId,
             type,
-            content
+            content,
+            postId,
+            postImage
         });
 
         await notification.save();
@@ -111,10 +113,29 @@ const getUnreadCount = async (req, res) => {
     }
 };
 
+// Mark all notifications as read for a user
+const markAllAsRead = async (req, res) => {
+    try {
+        const { userId } = req.params;
+
+        // Update all unread notifications for this user
+        await Notification.updateMany(
+            { recipient: userId, read: false },
+            { read: true }
+        );
+
+        res.status(200).json({ message: 'All notifications marked as read' });
+    } catch (error) {
+        console.error('Error marking all notifications as read:', error);
+        res.status(500).json({ message: 'Error marking all notifications as read', error: error.message });
+    }
+};
+
 module.exports = {
     createNotification,
     getUserNotifications,
     markAsRead,
     deleteNotification,
-    getUnreadCount
+    getUnreadCount,
+    markAllAsRead
 }; 

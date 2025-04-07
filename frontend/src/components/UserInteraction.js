@@ -21,6 +21,10 @@ const CommentSection = ({ currentpost, setCurrentPost }) => {
 
   const handleLike = async () => {
     try {
+      // Add debug logging
+      console.log("Current post data:", currentpost);
+      console.log("Current user data:", currentuser);
+
       const response = await axios.post(`http://localhost:5500/api/posts/${currentpost._id}/like`, {
         email: user.email,
         name: user.name
@@ -32,6 +36,36 @@ const CommentSection = ({ currentpost, setCurrentPost }) => {
           likes: response.data.likes
         }));
         setLiked(!liked);
+
+        // Only create notification when liking (not unliking)
+        if (!liked && currentpost.user_email !== user.email) {
+          try {
+            // Get the post owner's ID from the populated user object
+            const postOwnerId = currentpost.user?._id;
+            if (!postOwnerId) {
+              console.error("Post owner ID not found in:", currentpost);
+              return;
+            }
+
+            console.log("Creating like notification with data:", {
+              recipientId: postOwnerId,
+              senderId: currentuser._id,
+              postId: currentpost._id,
+              postImage: currentpost.url
+            });
+
+            await axios.post('http://localhost:5500/api/notifications', {
+              recipientId: postOwnerId,
+              senderId: currentuser._id,
+              type: 'like',
+              content: `${currentuser.username} liked your post`,
+              postId: currentpost._id,
+              postImage: currentpost.url
+            });
+          } catch (error) {
+            console.error("Error creating like notification:", error.response?.data || error);
+          }
+        }
       }
     } catch (error) {
       console.error("Error liking post:", error);
@@ -61,6 +95,29 @@ const CommentSection = ({ currentpost, setCurrentPost }) => {
           comments: response.data
         }));
         setCommentText("");
+
+        // Create notification for comment if not commenting on own post
+        if (currentpost.user_email !== user.email) {
+          try {
+            // Get the post owner's ID from the post data
+            const postOwnerId = currentpost.user?._id;
+            if (!postOwnerId) {
+              console.error("Post owner ID not found");
+              return;
+            }
+
+            await axios.post('http://localhost:5500/api/notifications', {
+              recipientId: postOwnerId,
+              senderId: currentuser._id,
+              type: 'comment',
+              content: `${currentuser.username} commented on your post: "${commentText.trim().substring(0, 50)}${commentText.length > 50 ? '...' : ''}"`,
+              postId: currentpost._id,
+              postImage: currentpost.url
+            });
+          } catch (error) {
+            console.error("Error creating comment notification:", error);
+          }
+        }
       }
     } catch (error) {
       console.error("Error adding comment:", error);

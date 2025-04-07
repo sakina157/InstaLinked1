@@ -14,7 +14,7 @@ const notificationSchema = new mongoose.Schema({
     type: {
         type: String,
         required: true,
-        enum: ['follow'] // We can add more types like 'like', 'comment' later
+        enum: ['follow', 'like', 'comment', 'mention'] // Added more notification types
     },
     read: {
         type: Boolean,
@@ -23,6 +23,13 @@ const notificationSchema = new mongoose.Schema({
     content: {
         type: String,
         required: true
+    },
+    postId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Post'
+    },
+    postImage: {
+        type: String
     },
     createdAt: {
         type: Date,

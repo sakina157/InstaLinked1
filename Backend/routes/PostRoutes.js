@@ -2,13 +2,29 @@ const express = require("express");
 const Post = require("../models/post");
 const router = express.Router();
 const mongoose = require("mongoose");
+const User = require("../models/user");
 
 // Get a single post
 router.get("/:id", async (req, res) => {
   try {
     const post = await Post.findById(req.params.id);
     if (!post) return res.status(404).json({ message: "Post not found" });
-    res.json(post);
+    
+    // Get user details
+    const user = await User.findOne({ email: post.user_email });
+    
+    // Combine post data with user details
+    const postWithUser = {
+      ...post.toObject(),
+      user: {
+        _id: user._id,
+        username: user.username,
+        profileImage: user.profileImage,
+        email: user.email
+      }
+    };
+    
+    res.json(postWithUser);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

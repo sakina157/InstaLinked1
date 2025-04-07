@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useSocket } from '../context/SocketContext';
 import { FaTimes } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
+import PostPopup from './PostPopup';
+import axios from 'axios';
 
 
 const Notification = () => {
@@ -10,6 +12,15 @@ const Notification = () => {
     const [loading, setLoading] = useState(false);
     const [activeFilter, setActiveFilter] = useState('All');
     const navigate = useNavigate();
+    const [selectedPost, setSelectedPost] = useState(null);
+    const [loggedInUser, setLoggedInUser] = useState(null);
+
+    useEffect(() => {
+        const user = JSON.parse(localStorage.getItem('user'));
+        if (user) {
+            setLoggedInUser(user);
+        }
+    }, []);
 
     const handleClose = () => {
         navigate('/home'); // Navigate to the home page
@@ -17,6 +28,7 @@ const Notification = () => {
 
     useEffect(() => {
         fetchNotifications();
+        markAllNotificationsAsRead();
     }, []);
 
     const fetchNotifications = async () => {
@@ -56,6 +68,26 @@ const Notification = () => {
             console.error('Error fetching notifications:', error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const markAllNotificationsAsRead = async () => {
+        try {
+            const user = JSON.parse(localStorage.getItem('user'));
+            if (!user) return;
+            
+            // Mark all notifications as read
+            const response = await fetch(`http://localhost:5500/api/notifications/mark-all-read/${user._id}`, {
+                method: 'PUT',
+                credentials: 'include'
+            });
+            
+            if (response.ok) {
+                // Reset unread count to 0
+                setUnreadCount(0);
+            }
+        } catch (error) {
+            console.error('Error marking all notifications as read:', error);
         }
     };
 
@@ -121,15 +153,47 @@ const Notification = () => {
             console.error('Error marking notification as read:', error);
         }
 
-        // Navigate to sender's profile only if sender exists
-        if (notification.sender && notification.sender._id) {
+        // Navigate based on notification type
+        if (notification.type === 'follow' && notification.sender?._id) {
             navigate(`/profile/${notification.sender._id}`);
-        } else {
-            console.error('Cannot navigate to profile: sender information is missing');
+        } else if ((notification.type === 'like' || notification.type === 'comment') && notification.postId) {
+            // Fetch the full post data before showing popup
+            try {
+                const response = await axios.get(`http://localhost:5500/api/posts/${notification.postId}`);
+                if (response.data) {
+                    setSelectedPost({
+                        ...response.data,
+                        user: {
+                            ...response.data.user,
+                            profileImage: response.data.user?.profileImage || "/default-avatar.png",
+                            username: response.data.user?.username || "User"
+                        }
+                    });
+                }
+            } catch (error) {
+                console.error('Error fetching post:', error);
+            }
         }
     };
+
     const handleFilterClick = (filter) => {
         setActiveFilter(filter);
+    };
+
+    // Filter notifications based on active filter
+    const getFilteredNotifications = (notifications) => {
+        if (activeFilter === 'All') {
+            return notifications;
+        } else if (activeFilter === 'Follows') {
+            return notifications.filter(notif => notif.type === 'follow');
+        } else if (activeFilter === 'Comments') {
+            return notifications.filter(notif => notif.type === 'comment');
+        } else if (activeFilter === 'Likes') {
+            return notifications.filter(notif => notif.type === 'like');
+        } else if (activeFilter === 'Mentions') {
+            return notifications.filter(notif => notif.type === 'mention');
+        }
+        return notifications;
     };
 
     const getNotificationsByDate = (notifications, daysAgo) => {
@@ -150,6 +214,9 @@ const Notification = () => {
             return notificationDate.toDateString() !== today.toDateString() && notificationDate.toDateString() !== yesterday.toDateString();
         });
     };
+
+    // Get filtered notifications
+    const filteredNotifications = getFilteredNotifications(notifications);
 
     return (
         <div style={styles.container}>
@@ -197,31 +264,38 @@ const Notification = () => {
                 
                     {loading ? (
                         <div style={styles.loading}>Loading notifications...</div>
-                    ) : notifications.length === 0 ? (
+                    ) : filteredNotifications.length === 0 ? (
                         <div style={styles.empty}>No notifications yet</div>
                     ) : (
                         <div style={styles.notificationsContainer}>
-                    {getNotificationsByDate(notifications, 0).length > 0 && (
+                    {getNotificationsByDate(filteredNotifications, 0).length > 0 && (
     <div style={styles.section}>
         <h4 style={styles.sectionTitle}>Today</h4>
-        {getNotificationsByDate(notifications, 0).map(notification => (
+        {getNotificationsByDate(filteredNotifications, 0).map(notification => (
             <div key={notification._id} style={styles.notificationItem}>
                 <div 
                     style={styles.notificationContent}
                     onClick={() => handleNotificationClick(notification)}
                 >
                     <img 
-                        src={notification.sender && notification.sender.profileImage ? notification.sender.profileImage : "/default-avatar.png"} 
+                        src={notification.sender?.profileImage || "/default-avatar.png"} 
                         alt="" 
                         style={styles.avatar}
                     />
                     <div style={styles.notificationText}>
-                        <span style={styles.username}>{notification.sender ? notification.sender.username : "Unknown User"}</span>
+                        <span style={styles.username}>{notification.sender?.username || "Unknown User"}</span>
                         <span>{notification.content}</span>
                         <span style={styles.time}>
                             {new Date(notification.createdAt).toLocaleTimeString()}
                         </span>
                     </div>
+                    {(notification.type === 'like' || notification.type === 'comment') && notification.postImage && (
+                        <img 
+                            src={notification.postImage} 
+                            alt="Post preview" 
+                            style={styles.postPreview}
+                        />
+                    )}
                 </div>
                 <div style={styles.actions}>
                     {notification.type === 'follow' && !notification.isFollowingBack && notification.sender && (
@@ -243,10 +317,10 @@ const Notification = () => {
         ))}
     </div>
 )}
-                    {getNotificationsByDate(notifications, 1).length > 0 && (
+                    {getNotificationsByDate(filteredNotifications, 1).length > 0 && (
                         <div style={styles.section}>
                             <h4 style={styles.sectionTitle}>Yesterday</h4>
-                            {getNotificationsByDate(notifications, 1).map(notification => (
+                            {getNotificationsByDate(filteredNotifications, 1).map(notification => (
                                 <div key={notification._id} style={styles.notificationItem}>
                                     <div 
                                         style={styles.notificationContent}
@@ -286,10 +360,10 @@ const Notification = () => {
                         </div>
                     )}
 
-                    {getPreviousNotifications(notifications).length > 0 && (
+                    {getPreviousNotifications(filteredNotifications).length > 0 && (
                         <div style={styles.section}>
                             <h4 style={styles.sectionTitle}>Previous</h4>
-                            {getPreviousNotifications(notifications).map(notification => (
+                            {getPreviousNotifications(filteredNotifications).map(notification => (
                                 <div key={notification._id} style={styles.notificationItem}>
                                     <div 
                                         style={styles.notificationContent}
@@ -329,6 +403,15 @@ const Notification = () => {
                         </div>
                     )}
                 </div>
+            )}
+
+            {/* Add PostPopup component */}
+            {selectedPost && (
+                <PostPopup
+                    post={selectedPost}
+                    onClose={() => setSelectedPost(null)}
+                    isCurrentUser={selectedPost.user_email === loggedInUser?.email}
+                />
             )}
         </div>
     );
@@ -464,6 +547,13 @@ const styles = {
         padding: '20px',
         textAlign: 'center',
         color: '#8e8e8e'
+    },
+    postPreview: {
+        width: '44px',
+        height: '44px',
+        objectFit: 'cover',
+        borderRadius: '4px',
+        marginLeft: '12px'
     }
 };
 
