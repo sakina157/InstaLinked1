@@ -70,21 +70,31 @@ const ViewProfile = () => {
         const postsResponse = await axios.get('http://localhost:5500/api/feed/homepage', {
           params: { email: userResponse.data.email }
         });
+
+        // Get followers and following counts
+        const [followersResponse, followingResponse] = await Promise.all([
+          axios.get(`http://localhost:5500/api/users/${userResponse.data._id}/followers`),
+          axios.get(`http://localhost:5500/api/users/${userResponse.data._id}/following`)
+        ]);
         
-        // Set user data with their posts
+        // Set user data with their posts and follow data
         const userData = {
           ...userResponse.data,
           posts: postsResponse.data || [],
+          followers: followersResponse.data || [],
+          following: followingResponse.data || [],
           isCurrentUser: isLoggedInUser
         };
 
         setUser(userData);
         
-        // If this is the logged-in user, update localStorage
+        // If this is the logged-in user, update localStorage with fresh data
         if (isLoggedInUser) {
           localStorage.setItem("user", JSON.stringify({
             ...storedUser,
-            ...userResponse.data
+            ...userResponse.data,
+            followers: followersResponse.data || [],
+            following: followingResponse.data || []
           }));
         }
 
@@ -105,46 +115,11 @@ const ViewProfile = () => {
   const fetchFollowersList = async () => {
     try {
       setLoadingFollowers(true);
-      console.log('Fetching followers for userId:', userId);
-      const response = await fetch(`http://localhost:5500/api/users/${userId}/followers`, {
-        credentials: 'include',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        }
-      });
+      console.log('Fetching followers for userId:', user._id);
+      const response = await axios.get(`http://localhost:5500/api/users/${user._id}/followers`);
       
-      if (!response.ok) {
-        throw new Error(`Failed to fetch followers: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      console.log('Followers response:', data);
-      
-      // Make sure we're getting an array of user objects
-      if (Array.isArray(data)) {
-        // If the data is just an array of IDs, we need to fetch user details
-        if (data.length > 0 && typeof data[0] === 'string') {
-          const userDetails = await Promise.all(
-            data.map(async (followerId) => {
-              const userResponse = await fetch(`http://localhost:5500/api/user/${followerId}`, {
-                credentials: 'include',
-                headers: {
-                  'Accept': 'application/json',
-                  'Content-Type': 'application/json'
-                }
-              });
-              if (!userResponse.ok) throw new Error(`Failed to fetch user ${followerId}`);
-              return userResponse.json();
-            })
-          );
-          setFollowersList(userDetails);
-        } else {
-          setFollowersList(data);
-        }
-      } else {
-        console.error('Followers data is not an array:', data);
-        setFollowersList([]);
+      if (response.data) {
+        setFollowersList(response.data);
       }
     } catch (error) {
       console.error("Error fetching followers:", error);
@@ -157,24 +132,15 @@ const ViewProfile = () => {
   const fetchFollowingList = async () => {
     try {
       setLoadingFollowing(true);
-      console.log('Fetching following for userId:', userId);
-      const response = await fetch(`http://localhost:5500/api/users/${userId}/following`, {
-        credentials: 'include',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        }
-      });
+      console.log('Fetching following for userId:', user._id);
+      const response = await axios.get(`http://localhost:5500/api/users/${user._id}/following`);
       
-      if (!response.ok) {
-        throw new Error(`Failed to fetch following: ${response.status}`);
+      if (response.data) {
+        setFollowingList(response.data);
       }
-      
-      const data = await response.json();
-      console.log('Following response:', data);
-      setFollowingList(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error("Error fetching following:", error);
+      setFollowingList([]);
     } finally {
       setLoadingFollowing(false);
     }
@@ -189,59 +155,52 @@ const ViewProfile = () => {
             isCurrentlyFollowing
         });
 
-        const response = await fetch(`http://localhost:5500/api/users/${isCurrentlyFollowing ? 'unfollow' : 'follow'}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-            },
-            credentials: 'include',
-            body: JSON.stringify({
-                userId: loggedInUser._id,
-                targetUserId
-            })
+      if (isCurrentlyFollowing) {
+        await axios.delete(`http://localhost:5500/api/follow/${targetUserId}`, {
+          data: { followerId: loggedInUser._id }
         });
+      } else {
+        await axios.post(`http://localhost:5500/api/follow/${targetUserId}`, {
+          followerId: loggedInUser._id
+        });
+      }
 
-        console.log('Follow/unfollow response status:', response.status);
-        
-        if (!response.ok) {
-            const errorData = await response.json();
-            console.error('Follow/unfollow error:', errorData);
-            throw new Error(`Failed to ${isCurrentlyFollowing ? 'unfollow' : 'follow'} user`);
-        }
-
-        const data = await response.json();
-        console.log('Follow/unfollow success:', data);
-
-        // Update logged-in user state with new following/followers lists
+      // Update local state
+      if (isCurrentlyFollowing) {
+        setUser(prev => ({
+          ...prev,
+          followers: prev.followers?.filter(id => id !== loggedInUser._id) || []
+        }));
         setLoggedInUser(prev => ({
             ...prev,
-            following: data.following,
-            followers: data.followers
+          following: prev.following?.filter(id => id !== targetUserId) || []
         }));
-
-        // Update viewed user's followers/following if we're on their profile
-        if (userId === targetUserId) {
+      } else {
             setUser(prev => ({
                 ...prev,
-                followers: isCurrentlyFollowing
-                    ? prev.followers.filter(id => id !== loggedInUser._id)
-                    : [...prev.followers, loggedInUser._id]
+          followers: [...(prev.followers || []), loggedInUser._id]
+        }));
+        setLoggedInUser(prev => ({
+          ...prev,
+          following: [...(prev.following || []), targetUserId]
             }));
         }
 
-        // Refresh the lists immediately
-        if (showFollowers) {
-            console.log('Refreshing followers list');
+      // Update localStorage
+      const updatedUser = {
+        ...loggedInUser,
+        following: isCurrentlyFollowing
+          ? (loggedInUser.following || []).filter(id => id !== targetUserId)
+          : [...(loggedInUser.following || []), targetUserId]
+      };
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+
+      // Refresh lists
             await fetchFollowersList();
-        }
-        if (showFollowing) {
-            console.log('Refreshing following list');
             await fetchFollowingList();
-        }
 
     } catch (error) {
-        console.error(`Error ${isCurrentlyFollowing ? 'unfollowing' : 'following'} user:`, error);
+      console.error("Error in follow action:", error);
     }
   };
 
@@ -253,21 +212,23 @@ const ViewProfile = () => {
         if (!loggedInUser || loggedInUser._id === listUser._id) return null;
         
         // Check if the logged-in user is following this user
-        const isFollowing = loggedInUser.following?.some(id => id.toString() === listUser._id.toString());
-        // Check if this user is following the logged-in user
-        const isFollowedBy = listUser.followers?.some(id => id.toString() === loggedInUser._id.toString());
+        const isFollowing = loggedInUser.following?.some(followingId => 
+            followingId.toString() === listUser._id.toString()
+        );
         
-        if (isFollowing) return "Following";
-        if (isFollowedBy) return "Follow Back";
-        return "Follow";
+        return isFollowing ? "Following" : "Follow";
     };
 
     const getButtonStyle = (listUser) => {
-        const isFollowing = loggedInUser?.following?.some(id => id.toString() === listUser._id.toString());
+        const isFollowing = loggedInUser?.following?.some(followingId => 
+            followingId.toString() === listUser._id.toString()
+        );
+        
         return {
             ...styles.followButton,
             backgroundColor: isFollowing ? '#e0e0e0' : '#006d77',
-            color: isFollowing ? '#000' : '#fff'
+            color: isFollowing ? '#000' : '#fff',
+            border: isFollowing ? '1px solid #dbdbdb' : 'none'
         };
     };
 
@@ -294,18 +255,18 @@ const ViewProfile = () => {
                                         cursor: 'pointer'
                                     }}
                                     onClick={() => {
-                                        navigate(`/profile/${listUser._id}`);
+                                        navigate(`/profile/${listUser.email}`);
                                         onClose();
                                     }}
                                 >
                                     <div style={styles.userListAvatarContainer}>
                                         <img 
-                                            src={listUser.profileImage || "/default-avatar.png"} 
+                                            src={listUser.profileImage || default_user} 
                                             alt={listUser.username || listUser.email} 
                                             style={styles.userListAvatar}
                                             onError={(e) => {
                                                 e.target.onerror = null;
-                                                e.target.src = "/default-avatar.png";
+                                                e.target.src = default_user;
                                             }}
                                         />
                                     </div>
@@ -319,7 +280,7 @@ const ViewProfile = () => {
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             const isFollowing = loggedInUser?.following?.some(
-                                                id => id.toString() === listUser._id.toString()
+                                                followingId => followingId.toString() === listUser._id.toString()
                                             );
                                             handleFollowAction(listUser._id, isFollowing);
                                         }}

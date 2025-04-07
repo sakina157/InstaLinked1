@@ -1,4 +1,5 @@
 const User = require('../models/user');
+const Notification = require('../models/notification');
 
 // Handle follow user
 const followUser = async (req, res) => {
@@ -36,11 +37,26 @@ const followUser = async (req, res) => {
             recipient: userId,
             sender: followerId,
             type: 'follow',
-            content: `${follower.username || follower.email} started following you`,
-            isFollowingBack: true // Set this to true since the user is now following back
+            content: `${follower.username || follower.email} started following you`
         });
 
         await notification.save();
+
+        // Populate sender details for immediate use
+        const populatedNotification = await Notification.findById(notification._id)
+            .populate('sender', 'username profileImage');
+
+        // Get io instance and emit notification
+        const io = req.app.get('io');
+        if (io) {
+            io.to(userId.toString()).emit('newNotification', {
+                notification: populatedNotification,
+                count: await Notification.countDocuments({
+                    recipient: userId,
+                    read: false
+                })
+            });
+        }
 
         res.status(200).json({ message: "Successfully followed user" });
     } catch (error) {

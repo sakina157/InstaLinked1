@@ -60,6 +60,11 @@ const Notification = () => {
     };
 
     const handleFollowBack = async (senderId) => {
+        if (!senderId) {
+            console.error('Cannot follow back: sender ID is missing');
+            return;
+        }
+        
         try {
             const user = JSON.parse(localStorage.getItem('user'));
             const response = await fetch(`http://localhost:5500/api/follow/${senderId}`, {
@@ -79,7 +84,7 @@ const Notification = () => {
                 // Update the notifications list to show "Following" instead of "Follow Back"
                 setNotifications(prev => 
                     prev.map(notif => 
-                        notif.sender._id === senderId 
+                        notif.sender && notif.sender._id === senderId 
                             ? { ...notif, isFollowingBack: true }
                             : notif
                     )
@@ -116,9 +121,12 @@ const Notification = () => {
             console.error('Error marking notification as read:', error);
         }
 
-        // Navigate to sender's profile
-        navigate(`/profile/${notification.sender._id}`);
-        
+        // Navigate to sender's profile only if sender exists
+        if (notification.sender && notification.sender._id) {
+            navigate(`/profile/${notification.sender._id}`);
+        } else {
+            console.error('Cannot navigate to profile: sender information is missing');
+        }
     };
     const handleFilterClick = (filter) => {
         setActiveFilter(filter);
@@ -203,12 +211,12 @@ const Notification = () => {
                     onClick={() => handleNotificationClick(notification)}
                 >
                     <img 
-                        src={notification.sender.profileImage || "/default-avatar.png"} 
+                        src={notification.sender && notification.sender.profileImage ? notification.sender.profileImage : "/default-avatar.png"} 
                         alt="" 
                         style={styles.avatar}
                     />
                     <div style={styles.notificationText}>
-                        <span style={styles.username}>{notification.sender.username}</span>
+                        <span style={styles.username}>{notification.sender ? notification.sender.username : "Unknown User"}</span>
                         <span>{notification.content}</span>
                         <span style={styles.time}>
                             {new Date(notification.createdAt).toLocaleTimeString()}
@@ -216,7 +224,7 @@ const Notification = () => {
                     </div>
                 </div>
                 <div style={styles.actions}>
-                    {notification.type === 'follow' && !notification.isFollowingBack && (
+                    {notification.type === 'follow' && !notification.isFollowingBack && notification.sender && (
                         <button 
                             style={styles.followButton}
                             onClick={() => handleFollowBack(notification.sender._id)}
@@ -245,12 +253,12 @@ const Notification = () => {
                                         onClick={() => handleNotificationClick(notification)}
                                     >
                                         <img 
-                                            src={notification.sender.profileImage || "/default-avatar.png"} 
+                                            src={notification.sender && notification.sender.profileImage ? notification.sender.profileImage : "/default-avatar.png"} 
                                             alt="" 
                                             style={styles.avatar}
                                         />
                                         <div style={styles.notificationText}>
-                                            <span style={styles.username}>{notification.sender.username}</span>
+                                            <span style={styles.username}>{notification.sender ? notification.sender.username : "Unknown User"}</span>
                                             <span>{notification.content}</span>
                                             <span style={styles.time}>
                                                 {new Date(notification.createdAt).toLocaleTimeString()}
@@ -258,7 +266,7 @@ const Notification = () => {
                                         </div>
                                     </div>
                                     <div style={styles.actions}>
-                                        {notification.type === 'follow' && !notification.isFollowingBack && (
+                                        {notification.type === 'follow' && !notification.isFollowingBack && notification.sender && (
                                             <button 
                                                 style={styles.followButton}
                                                 onClick={() => handleFollowBack(notification.sender._id)}
@@ -288,12 +296,12 @@ const Notification = () => {
                                         onClick={() => handleNotificationClick(notification)}
                                     >
                                         <img 
-                                            src={notification.sender.profileImage || "/default-avatar.png"} 
+                                            src={notification.sender && notification.sender.profileImage ? notification.sender.profileImage : "/default-avatar.png"} 
                                             alt="" 
                                             style={styles.avatar}
                                         />
                                         <div style={styles.notificationText}>
-                                            <span style={styles.username}>{notification.sender.username}</span>
+                                            <span style={styles.username}>{notification.sender ? notification.sender.username : "Unknown User"}</span>
                                             <span>{notification.content}</span>
                                             <span style={styles.time}>
                                                 {new Date(notification.createdAt).toLocaleDateString()}
@@ -301,7 +309,7 @@ const Notification = () => {
                                         </div>
                                     </div>
                                     <div style={styles.actions}>
-                                        {notification.type === 'follow' && !notification.isFollowingBack && (
+                                        {notification.type === 'follow' && !notification.isFollowingBack && notification.sender && (
                                             <button 
                                                 style={styles.followButton}
                                                 onClick={() => handleFollowBack(notification.sender._id)}

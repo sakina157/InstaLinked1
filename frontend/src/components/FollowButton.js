@@ -12,22 +12,37 @@ const FollowButton = ({ targetUserId, onFollowChange }) => {
         if (storedUser) {
             const user = JSON.parse(storedUser);
             setLoggedInUserId(user._id);
+            // Check if the target user is in the following list
+            setIsFollowing(user.following?.includes(targetUserId));
         }
-    }, []);
+    }, [targetUserId]);
 
     useEffect(() => {
-        // Check initial follow status
+        // Check initial follow status from the server
         const checkFollowStatus = async () => {
             if (!loggedInUserId) return;
             
             try {
-                const response = await axios.get(`http://localhost:5500/api/follow/status/${targetUserId}?followerId=${loggedInUserId}`, {
+                const response = await axios.get(`http://localhost:5500/api/follow/status/${targetUserId}`, {
+                    params: { followerId: loggedInUserId },
                     withCredentials: true
                 });
                 setIsFollowing(response.data.isFollowing);
+                
+                // Update localStorage if server state differs
+                const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
+                if (response.data.isFollowing !== storedUser.following?.includes(targetUserId)) {
+                    const updatedFollowing = response.data.isFollowing
+                        ? [...(storedUser.following || []), targetUserId]
+                        : (storedUser.following || []).filter(id => id !== targetUserId);
+                    
+                    localStorage.setItem("user", JSON.stringify({
+                        ...storedUser,
+                        following: updatedFollowing
+                    }));
+                }
             } catch (error) {
                 console.error('Error checking follow status:', error);
-                console.log('Target User ID:', targetUserId, 'Logged In User ID:', loggedInUserId);
             }
         };
 
@@ -38,13 +53,24 @@ const FollowButton = ({ targetUserId, onFollowChange }) => {
         if (!loggedInUserId) return;
 
         try {
-            await axios.post(`http://localhost:5500/api/follow/${targetUserId}`, {
+            const response = await axios.post(`http://localhost:5500/api/follow/${targetUserId}`, {
                 followerId: loggedInUserId
             }, {
                 withCredentials: true
             });
-            setIsFollowing(true);
-            if (onFollowChange) onFollowChange(true);
+
+            if (response.status === 200) {
+                setIsFollowing(true);
+                if (onFollowChange) onFollowChange(true);
+
+                // Update localStorage
+                const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
+                const updatedFollowing = [...(storedUser.following || []), targetUserId];
+                localStorage.setItem("user", JSON.stringify({
+                    ...storedUser,
+                    following: updatedFollowing
+                }));
+            }
         } catch (error) {
             console.error('Error following user:', error);
         }
@@ -54,13 +80,24 @@ const FollowButton = ({ targetUserId, onFollowChange }) => {
         if (!loggedInUserId) return;
 
         try {
-            await axios.delete(`http://localhost:5500/api/follow/${targetUserId}`, {
+            const response = await axios.delete(`http://localhost:5500/api/follow/${targetUserId}`, {
                 data: { followerId: loggedInUserId },
                 withCredentials: true
             });
-            setIsFollowing(false);
-            setShowUnfollow(false);
-            if (onFollowChange) onFollowChange(false);
+
+            if (response.status === 200) {
+                setIsFollowing(false);
+                setShowUnfollow(false);
+                if (onFollowChange) onFollowChange(false);
+
+                // Update localStorage
+                const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
+                const updatedFollowing = (storedUser.following || []).filter(id => id !== targetUserId);
+                localStorage.setItem("user", JSON.stringify({
+                    ...storedUser,
+                    following: updatedFollowing
+                }));
+            }
         } catch (error) {
             console.error('Error unfollowing user:', error);
         }

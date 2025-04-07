@@ -7,7 +7,7 @@ import logo from "../images/logo.svg"
 import { useSocket } from '../context/SocketContext';
 
 const HomeNavbar = () => {
-    const { unreadCount } = useSocket();
+    const { unreadCount, setUnreadCount } = useSocket();
     const [user, setUser] = useState(null);
     const [searchQuery, setSearchQuery] = useState("");
     const [searchResults, setSearchResults] = useState([]);
@@ -19,7 +19,29 @@ const HomeNavbar = () => {
         if (storedUser) {
             setUser(JSON.parse(storedUser));
         }
+        
+        // Fetch unread notification count
+        fetchUnreadCount();
     }, []);
+
+    // Function to fetch unread notification count
+    const fetchUnreadCount = async () => {
+        try {
+            const user = JSON.parse(localStorage.getItem('user'));
+            if (!user) return;
+            
+            const response = await fetch(`http://localhost:5500/api/notifications/unread/${user._id}`, {
+                credentials: 'include'
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                setUnreadCount(data.count);
+            }
+        } catch (error) {
+            console.error('Error fetching unread count:', error);
+        }
+    };
 
     // ✅ Search users
     const handleSearch = async () => {

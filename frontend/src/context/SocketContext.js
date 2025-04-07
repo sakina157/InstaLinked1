@@ -49,7 +49,14 @@ export const SocketProvider = ({ children }) => {
                         }
                         return prev;
                     });
-                    setUnreadCount(data.count || 0);
+                    
+                    // Update unread count
+                    if (data.count !== undefined) {
+                        setUnreadCount(data.count);
+                    } else {
+                        // If count not provided, increment by 1
+                        setUnreadCount(prev => prev + 1);
+                    }
                 }
             });
 
