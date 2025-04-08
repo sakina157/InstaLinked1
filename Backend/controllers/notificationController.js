@@ -4,7 +4,18 @@ const User = require('../models/user');
 // Create a new notification
 const createNotification = async (req, res) => {
     try {
+        console.log("Received notification request body:", req.body);
         const { recipientId, senderId, type, content, postId, postImage } = req.body;
+
+        // Validate required fields
+        if (!recipientId || !senderId || !type || !content) {
+            console.error("Missing required fields:", { recipientId, senderId, type, content });
+            return res.status(400).json({ 
+                message: 'Missing required fields',
+                required: ['recipientId', 'senderId', 'type', 'content'],
+                received: { recipientId, senderId, type, content }
+            });
+        }
 
         const notification = new Notification({
             recipient: recipientId,
@@ -12,14 +23,19 @@ const createNotification = async (req, res) => {
             type,
             content,
             postId,
-            postImage
+            postImage: postImage || null // Make postImage optional
         });
 
+        console.log("Created notification object:", notification);
+
         await notification.save();
+        console.log("Notification saved successfully");
 
         // Populate sender details for immediate use
         const populatedNotification = await Notification.findById(notification._id)
             .populate('sender', 'username profileImage');
+
+        console.log("Populated notification:", populatedNotification);
 
         // Get io instance
         const io = req.app.get('io');
@@ -36,7 +52,12 @@ const createNotification = async (req, res) => {
         res.status(201).json(populatedNotification);
     } catch (error) {
         console.error('Error creating notification:', error);
-        res.status(500).json({ message: 'Error creating notification', error: error.message });
+        console.error('Error stack:', error.stack);
+        res.status(500).json({ 
+            message: 'Error creating notification', 
+            error: error.message,
+            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        });
     }
 };
 

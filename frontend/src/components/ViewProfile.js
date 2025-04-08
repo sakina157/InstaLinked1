@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { FaShareAlt, FaTimes, FaHeart, FaRegComment } from "react-icons/fa";
+import { FaShareAlt, FaTimes, FaHeart, FaRegComment, FaFilm } from "react-icons/fa";
 import HomeNavbar from './HomeNavbar';
 import FollowButton from './FollowButton';
 import disk from '../images/disk.jpg';
 import axios from 'axios';
 import default_user from '../images/default_user.jpg';
 import PostPopup from './PostPopup';
+import SuggestionsForYou from './SuggestionsForYou';
 
 const ViewProfile = () => {
   const { userId } = useParams();
@@ -321,6 +322,8 @@ const ViewProfile = () => {
           </div>
         );
       case 'video':
+      case 'reel':
+      case 'documentary':
         return (
           <div 
             key={post._id}
@@ -334,9 +337,28 @@ const ViewProfile = () => {
               }
             })}
           >
-            <div style={styles.postPreviewVideo}>
-              <video src={post.url} style={styles.postPreviewImage} />
+            <div style={{
+              ...styles.postPreviewVideo,
+              aspectRatio: post.content_type?.toLowerCase() === 'reel' ? '9/16' : '16/9'
+            }}>
+              <video 
+                src={post.url} 
+                style={styles.postPreviewImage}
+                muted
+                playsInline
+              />
               <div style={styles.playIcon}>▶️</div>
+              {post.content_type?.toLowerCase() === 'documentary' && (
+                <div style={{
+                  position: 'absolute',
+                  top: 0,
+                  right: 0,
+                  padding: '5px',
+                  backgroundColor: "hsla(172, 96.40%, 43.50%, 0.53)"
+                }}>
+                  <FaFilm size={20} color="white" />
+                </div>
+              )}
             </div>
           </div>
         );
@@ -492,7 +514,6 @@ const ViewProfile = () => {
         <div style={styles.analyticsSection}>
           <h3>Analytics</h3>
           <div style={styles.analyticsBox}>
-
           </div>
         </div>
 
@@ -511,66 +532,42 @@ const ViewProfile = () => {
 
       {/* Right Section */}
       <div style={styles.rightSection}>
-        {/* Recent Activity */}
-        <div style={styles.activitySection}>
-          <h3>Recent Activity</h3>
-          <div style={styles.activityBox}>
-            <p>John Doe liked your post</p>
-            <span>2 hours ago</span>
-          </div>
-          <div style={styles.activityBox}>
-            <p>Jane Smith commented on your post</p>
-            <span>5 hours ago</span>
-          </div>
-        </div>
-
-        {/* Suggested for You */}
-        <div style={styles.suggestionSection}>
-          <h3>Suggested for you</h3>
-          <div style={styles.suggestionBox}>
-            <p>Alex Turner</p>
-            <span>Product Manager at Tech Co</span>
-            <button style={styles.followButton}>Follow</button>
-          </div>
-          <div style={styles.suggestionBox}>
-            <p>Emily Chen</p>
-            <span>UI Designer at Design Studio</span>
-            <button style={styles.followButton}>Follow</button>
-          </div>
-        </div>
+        <br></br>
+        <br></br>
+        <SuggestionsForYou />
       </div>
     </div>
+    
+    {/* Modals */}
+    <UserListModal 
+      show={showFollowers} 
+      onClose={() => setShowFollowers(false)} 
+      title="Followers" 
+      users={followersList}
+      loading={loadingFollowers}
+    />
+    <UserListModal 
+      show={showFollowing} 
+      onClose={() => setShowFollowing(false)} 
+      title="Following" 
+      users={followingList}
+      loading={loadingFollowing}
+    />
 
-      {/* Modals */}
-      <UserListModal 
-        show={showFollowers} 
-        onClose={() => setShowFollowers(false)} 
-        title="Followers" 
-        users={followersList}
-        loading={loadingFollowers}
+    {/* Post Popup */}
+    {selectedPost && (
+      <PostPopup
+        post={selectedPost}
+        onClose={() => setSelectedPost(null)}
+        isCurrentUser={selectedPost.user_email === loggedInUser?.email}
       />
-      <UserListModal 
-        show={showFollowing} 
-        onClose={() => setShowFollowing(false)} 
-        title="Following" 
-        users={followingList}
-        loading={loadingFollowing}
-      />
+    )}
 
-      {/* Post Popup */}
-      {selectedPost && (
-        <PostPopup
-          post={selectedPost}
-          onClose={() => setSelectedPost(null)}
-          isCurrentUser={selectedPost.user_email === loggedInUser?.email}
-        />
-      )}
-
-      <style jsx>{`
-        .post-preview:hover .post-hover-overlay {
-          opacity: 1;
-        }
-      `}</style>
+    <style jsx>{`
+      .post-preview:hover .post-hover-overlay {
+        opacity: 1;
+      }
+    `}</style>
     </>
   );
 };

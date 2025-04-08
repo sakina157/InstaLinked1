@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { auth, googleProvider, facebookProvider } from "../firebaseConfig";
 import { signInWithPopup } from "firebase/auth";
 import Footer from './Footer';
+import bookshelves from '../images/bookshelves-amico.png';
 
 const Signup = () => {
   const [formData, setFormData] = useState({
@@ -131,7 +132,9 @@ const Signup = () => {
     <PageWrapper>
       
       <Main>
-        <Placeholder />
+        <ImageContainer>
+          <IllustrationImage src={bookshelves} alt="Bookshelves Illustration" />
+        </ImageContainer>
         <FormWrapper>
           <Title>Begin your journey</Title>
           <Form onSubmit={handleSubmit}>
@@ -222,13 +225,21 @@ const Main = styled.main`
   align-items: center;
   flex-grow: 1;
   padding: 50px;
+  gap: 40px;
 `;
 
-const Placeholder = styled.div`
-  width: 400px;
-  height: 300px;
-  background: #80b6bb;
-  border-radius: 10px;
+const ImageContainer = styled.div`
+  width: 500px;
+  height: 500px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+`;
+
+const IllustrationImage = styled.img`
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 `;
 
 const FormWrapper = styled.div`

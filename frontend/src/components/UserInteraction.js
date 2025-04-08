@@ -51,13 +51,16 @@ const CommentSection = ({ currentpost, setCurrentPost }) => {
                     const ownerId = userResponse.data._id;
                     
                     // Ensure we're sending the correct post image URL
-                    const postImage = currentpost.url || currentpost.image || currentpost.imageUrl;
+                    const postImage = {
+                      url: currentpost.url || currentpost.image || currentpost.imageUrl,
+                      content_type: currentpost.content_type || 'image'
+                    };
                     
                     await axios.post('http://localhost:5500/api/notifications', {
                       recipientId: ownerId,
                       senderId: currentuser._id,
                       type: 'like',
-                      content: `${currentuser.username} liked your post`,
+                      content: `${currentuser.username} liked your ${currentpost.content_type?.toLowerCase() === 'reel' ? 'reel' : 'post'}`,
                       postId: currentpost._id,
                       postImage: postImage
                     });
@@ -68,13 +71,16 @@ const CommentSection = ({ currentpost, setCurrentPost }) => {
               }
             } else {
               // Ensure we're sending the correct post image URL
-              const postImage = currentpost.url || currentpost.image || currentpost.imageUrl;
+              const postImage = {
+                url: currentpost.url || currentpost.image || currentpost.imageUrl,
+                content_type: currentpost.content_type || 'image'
+              };
               
               await axios.post('http://localhost:5500/api/notifications', {
                 recipientId: postOwnerId,
                 senderId: currentuser._id,
                 type: 'like',
-                content: `${currentuser.username} liked your post`,
+                content: `${currentuser.username} liked your ${currentpost.content_type?.toLowerCase() === 'reel' ? 'reel' : 'post'}`,
                 postId: currentpost._id,
                 postImage: postImage
               });
@@ -115,25 +121,57 @@ const CommentSection = ({ currentpost, setCurrentPost }) => {
 
         if (currentpost.user_email !== user.email) {
           try {
-            const postOwnerId = currentpost.user?._id;
+            console.log("Current post data for notification:", currentpost);
+            console.log("Current user data for notification:", currentuser);
+            
+            // First try to get postOwnerId from currentpost.user
+            let postOwnerId = currentpost.user?._id;
+            console.log("Initial postOwnerId from currentpost.user:", postOwnerId);
+
+            // If not found, try to get it from the post response
             if (!postOwnerId) {
-              console.error("Post owner ID not found");
-              return;
+              console.log("Fetching post owner details from server...");
+              const postResponse = await axios.get(`http://localhost:5500/api/posts/${currentpost._id}`);
+              console.log("Post response data:", postResponse.data);
+              
+              if (postResponse.data && postResponse.data.user_email) {
+                const userResponse = await axios.get(`http://localhost:5500/api/users/email/${postResponse.data.user_email}`);
+                console.log("User response data:", userResponse.data);
+                
+                if (userResponse.data && userResponse.data._id) {
+                  postOwnerId = userResponse.data._id;
+                  console.log("Retrieved postOwnerId:", postOwnerId);
+                }
+              }
+            }
+
+            if (!postOwnerId) {
+              throw new Error("Could not determine post owner ID");
             }
 
             // Ensure we're sending the correct post image URL
-            const postImage = currentpost.url || currentpost.image || currentpost.imageUrl;
+            const postImage = {
+              url: currentpost.url || currentpost.image || currentpost.imageUrl,
+              content_type: currentpost.content_type || 'image'
+            };
+            console.log("Notification post image data:", postImage);
 
-            await axios.post('http://localhost:5500/api/notifications', {
+            const notificationData = {
               recipientId: postOwnerId,
               senderId: currentuser._id,
               type: 'comment',
-              content: `${currentuser.username} commented on your post: "${commentText.trim().substring(0, 50)}${commentText.length > 50 ? '...' : ''}"`,
+              content: `${currentuser.username} commented on your ${currentpost.content_type?.toLowerCase() === 'reel' ? 'reel' : 'post'}: "${commentText.trim().substring(0, 50)}${commentText.length > 50 ? '...' : ''}"`,
               postId: currentpost._id,
-              postImage: postImage
-            });
+              postImage: postImage.url
+            };
+            console.log("Sending notification with data:", notificationData);
+
+            const notificationResponse = await axios.post('http://localhost:5500/api/notifications', notificationData);
+            console.log("Notification creation response:", notificationResponse.data);
+
           } catch (error) {
-            console.error("Error creating comment notification:", error);
+            console.error("Error creating comment notification:", error.response?.data || error);
+            console.error("Full error object:", error);
           }
         }
       }

@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import styled from 'styled-components';
-import { FaHeart, FaRegHeart, FaRegComment, FaEllipsisH, FaTimes } from 'react-icons/fa';
+import { FaHeart, FaRegHeart, FaRegComment, FaEllipsisH, FaTimes, FaFilm } from 'react-icons/fa';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import CommentSection from './UserInteraction';
@@ -151,17 +151,40 @@ const PostPopup = ({ post, onClose, isCurrentUser }) => {
           />
         );
       case 'video':
+      case 'reel':
+      case 'documentary':
         return (
-          <video 
-            src={post.url}
-            controls
-            style={{ 
-              maxWidth: '100%', 
-              maxHeight: '100%', 
-              objectFit: 'contain',
-              display: 'block'
-            }}
-          />
+          <div style={{ 
+            width: '100%', 
+            height: '100%', 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center',
+            backgroundColor: '#000'
+          }}>
+            <video 
+              src={post.url}
+              controls
+              style={{ 
+                maxWidth: '100%', 
+                maxHeight: '100%', 
+                objectFit: 'contain',
+                display: 'block',
+                aspectRatio: post.content_type?.toLowerCase() === 'reel' ? '9/16' : '16/9'
+              }}
+            />
+            {post.content_type?.toLowerCase() === 'documentary' && (
+              <div style={{
+                position: 'absolute',
+                top: 0,
+                right: 0,
+                padding: '5px',
+                backgroundColor: "hsla(172, 96.40%, 43.50%, 0.53)"
+              }}>
+                <FaFilm size={30} color="white" />
+              </div>
+            )}
+          </div>
         );
       case 'audio':
         return (

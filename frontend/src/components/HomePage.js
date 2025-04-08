@@ -6,7 +6,8 @@ import HomeNavbar from "./HomeNavbar";
 import disk from '../images/disk.jpg';
 import { useRef } from "react";
 import PostPopup from './PostPopup';
-import { FaHeart, FaRegComment, FaRegHeart } from 'react-icons/fa';
+import { FaHeart, FaRegComment, FaRegHeart, FaFilm } from 'react-icons/fa';
+import SuggestionsForYou from './SuggestionsForYou';
 
 // Change the default profile image to use local image instead of Cloudinary
 const DEFAULT_PROFILE_IMAGE = default_user;
@@ -24,6 +25,17 @@ const HomePage = () => {
   const location = useLocation();
   const [selectedPost, setSelectedPost] = useState(null);
   const [showComments, setShowComments] = useState(false);
+
+  const handleVideoPreview = useCallback((postId) => {
+    const video = videoRefs.current[postId];
+    if (video) {
+      video.play();
+      setTimeout(() => {
+        video.pause();
+        video.currentTime = 0;
+      }, 5000); // Preview for 5 seconds
+    }
+  }, []);
 
   const mediaStyle = useMemo(() => ({
     width: '100%',
@@ -134,7 +146,37 @@ const HomePage = () => {
             loop
             playsInline
             ref={el => videoRefs.current[post._id] = el}
+            onMouseEnter={() => handleVideoPreview(post._id)}
           />
+        );
+      case 'reel':
+        return (
+          <video
+            src={post.url}
+            style={{...style, aspectRatio: '9/16'}}
+            controls
+            muted
+            playsInline
+            ref={el => videoRefs.current[post._id] = el}
+            onMouseEnter={() => handleVideoPreview(post._id)}
+          />
+        );
+      case 'documentary':
+        return (
+          <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+            <video
+              src={post.url}
+              style={{...style, aspectRatio: '16/9'}}
+              controls
+              muted
+              playsInline
+              ref={el => videoRefs.current[post._id] = el}
+              onMouseEnter={() => handleVideoPreview(post._id)}
+            />
+            <span style={{ position: 'absolute', top: 0, right: 0, color: 'white', zIndex: 10, pointerEvents: 'none' }}>
+              <FaFilm size={30} style={{ position: 'absolute', color: 'white', top: 0, right: 0, padding: '5px', backgroundColor: "hsla(172, 96.40%, 43.50%, 0.53)" }} />
+            </span>
+          </div>
         );
       case 'audio':
         return (
@@ -172,7 +214,7 @@ const HomePage = () => {
       default:
         return null;
     }
-  }, []);
+  }, [handleVideoPreview]);
 
   const handleUsernameClick = (userEmail, e) => {
     e.stopPropagation();
@@ -279,48 +321,26 @@ const HomePage = () => {
     };
 
     return (
-      <div key={post._id} className="post" style={{ 
-        marginBottom: '20px',
-        backgroundColor: 'white',
-        borderRadius: '8px',
-        boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
-        width: '100%',
-        maxWidth: '600px',
-        margin: '0 auto 20px'
-      }}>
-        <div style={{ 
-          display: 'flex', 
-          alignItems: 'center',
-          padding: '14px',
-          borderBottom: '1px solid #efefef'
-        }}>
-          <img 
-            src={post.user?.profileImage || DEFAULT_PROFILE_IMAGE} 
-            alt={post.user?.username || "User"} 
-            style={{ 
-              width: '32px', 
-              height: '32px', 
-              borderRadius: '50%', 
-              marginRight: '10px',
-              objectFit: 'cover'
-            }} 
-            onClick={(e) => handleUsernameClick(post.user_email || post.user?.email, e)}
-          />
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <span 
-              className="username" 
-              style={{ 
-                fontWeight: '600',
-                fontSize: '14px',
-                cursor: 'pointer'
-              }} 
+      <div key={post._id} style={styles.postItem}>
+        <div style={styles.postHeader}>
+          <div style={styles.postHeaderUserInfo}>
+            <img 
+              src={post.user?.profileImage || DEFAULT_PROFILE_IMAGE} 
+              alt={post.user?.username || "User"} 
+              style={styles.postHeaderAvatar}
               onClick={(e) => handleUsernameClick(post.user_email || post.user?.email, e)}
-            >
-              {post.user?.username || post.username || "User"}
-            </span>
-            <span style={{ fontSize: '12px', color: '#8e8e8e' }}>
-              {new Date(post.created_at).toLocaleString()}
-            </span>
+            />
+            <div style={styles.postHeaderUserDetails}>
+              <span 
+                style={styles.postHeaderUsername}
+                onClick={(e) => handleUsernameClick(post.user_email || post.user?.email, e)}
+              >
+                {post.user?.username || post.username || "User"}
+              </span>
+              <span style={styles.postHeaderTime}>
+                {new Date(post.created_at).toLocaleString()}
+              </span>
+            </div>
           </div>
         </div>
         
@@ -453,74 +473,71 @@ const HomePage = () => {
       <div style={styles.content}>
         {/* Left Sidebar */}
         <div style={styles.leftSidebar}>
-          <h3>Trending Content</h3>
-          <div style={styles.trendingItem}>
-            <p><strong>Heritage Festival 2025</strong></p>
-            <p>March 15-20</p>
-          </div>
-          <div style={styles.trendingItem}>
-            <p><strong>Heritage Festival 2025</strong></p>
-            <p>March 15-20</p>
+          <div style={styles.trendingContainer}>
+            <div style={styles.trendingHeader}>
+              <h3 style={styles.trendingTitle}>Trending Content</h3>
+            </div>
+            <div style={styles.trendingContent}>
+              <div style={styles.trendingItem}>
+                <p style={styles.trendingItemTitle}>Heritage Festival 2025</p>
+                <p style={styles.trendingItemDate}>March 15-20</p>
+              </div>
+              <div style={styles.trendingItem}>
+                <p style={styles.trendingItemTitle}>Heritage Festival 2025</p>
+                <p style={styles.trendingItemDate}>March 15-20</p>
+              </div>
+              <div style={styles.trendingItem}>
+                <p style={styles.trendingItemTitle}>Heritage Festival 2025</p>
+                <p style={styles.trendingItemDate}>March 15-20</p>
+              </div>
+            </div>
           </div>
 
-          <h3>Suggested for You</h3>
-          <div style={styles.suggestion}>
-            <span style={styles.suggestionAvatar}>👤</span>
-            <div>
-              <strong>Alex Turner</strong>
-              <p>Product Manager at Tech Inc</p>
-            </div>
-            <button style={styles.followButton}>Follow</button>
-          </div>
-          <div style={styles.suggestion}>
-            <span style={styles.suggestionAvatar}>👤</span>
-            <div>
-              <strong>Emily Chen</strong>
-              <p>UX Designer at Design Studio</p>
-            </div>
-            <button style={styles.followButton}>Follow</button>
-          </div>
-          <div style={styles.suggestion}>
-            <span style={styles.suggestionAvatar}>👤</span>
-            <div>
-              <strong>David Kim</strong>
-              <p>Frontend Developer at Web Co</p>
-            </div>
-            <button style={styles.followButton}>Follow</button>
-          </div>
+          {/* SuggestionsForYou component remains separate */}
+          <SuggestionsForYou />
         </div>
 
         {/* Feed Section */}
-<div style={styles.feed}>
-    <div style={styles.profileComplete}>
-        <p><strong>Complete Your Profile</strong></p>
-        <p>Personalize your experience and connect better with the community</p>
-        <button style={styles.completeButton}>Complete</button>
-    </div>
+        <div style={styles.feed}>
+          <div style={styles.profileComplete}>
+            <div style={styles.profileCompleteText}>
+              <h3 style={styles.profileCompleteTitle}>Complete Your Profile</h3>
+              <p style={styles.profileCompleteDescription}>
+                Personalize your experience and connect better with the community
+              </p>
+            </div>
+            <button 
+              style={styles.completeButton}
+              onClick={() => navigate('/create-profile')}
+            >
+              Complete
+            </button>
+          </div>
 
-    {/* Post Feed (One Post Per Row) */}
-    <div style={styles.postFeed}>
-        {filteredPosts.length > 0 ? (
-            filteredPosts.map(post => (
+          {/* Post Feed */}
+          <div style={styles.postFeed}>
+            {filteredPosts.length > 0 ? (
+              filteredPosts.map(post => (
                 <div key={post._id} style={styles.postItem}>
-                    <div
-                        onClick={() => navigate(`/p/${post._id}`, { state: { background: location } })}
-                        className="link"
-                        style={styles.postContent}
-                    >
-                        {post.url ? renderPost(post) : <p>Post content unavailable</p>}
-                    </div>
+                  <div
+                    onClick={() => navigate(`/p/${post._id}`, { state: { background: location } })}
+                    className="link"
+                    style={styles.postContent}
+                  >
+                    {post.url ? renderPost(post) : <p>Post content unavailable</p>}
+                  </div>
                 </div>
-            ))
-        ) : (
-            <p className="text-center text-gray-500">No posts available</p>
-        )}
-    </div>
-</div>
-
+              ))
+            ) : (
+              <p style={{ textAlign: 'center', color: '#666666' }}>No posts available</p>
+            )}
+          </div>
+        </div>
 
         {/* Right Sidebar */}
-        <div style={styles.rightSidebar}></div>
+        <div style={styles.rightSidebar}>
+            {/* Remove SuggestionsForYou from here */}
+        </div>
       </div>
     </div>
     
@@ -584,20 +601,52 @@ const styles = {
     marginRight: "auto",
   },
   leftSidebar: {
-    width: "220px",
-    backgroundColor: "#ffffff",
-    padding: "15px",
-    borderRadius: "5px",
-    marginRight: "20px",
-    position: "sticky",
-    top: "20px",
-    height: "fit-content",
+    width: '280px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '24px',
+    position: 'sticky',
+    top: '20px',
+    height: 'fit-content',
+  },
+  trendingContainer: {
+    backgroundColor: '#ffffff',
+    borderRadius: '4px',
+    boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
+  },
+  trendingHeader: {
+    backgroundColor: '#80b6bb',
+    padding: '12px 15px',
+    borderTopLeftRadius: '4px',
+    borderTopRightRadius: '4px',
+  },
+  trendingTitle: {
+    fontSize: '14px',
+    fontWeight: '600',
+    color: '#000000',
+    margin: 0,
+  },
+  trendingContent: {
+    padding: '12px 15px',
+    backgroundColor: '#f4f2ee',
   },
   trendingItem: {
-    marginBottom: "10px",
-    padding: "10px",
-    backgroundColor: "#f4f2ee",
-    borderRadius: "5px",
+    backgroundColor: '#ffffff',
+    padding: '12px',
+    borderRadius: '4px',
+    marginBottom: '8px',
+    boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+  },
+  trendingItemTitle: {
+    fontSize: '13px',
+    fontWeight: '600',
+    color: '#000000',
+    margin: '0 0 4px 0',
+  },
+  trendingItemDate: {
+    fontSize: '12px',
+    color: '#666666',
+    margin: 0,
   },
   suggestion: {
     display: "flex",
@@ -620,47 +669,97 @@ const styles = {
     flex: 1,
     maxWidth: "600px",
     margin: "0 auto",
+    display: "flex",
+    flexDirection: "column",
+    gap: "20px",
   },
   profileComplete: {
     backgroundColor: "#ffffff",
-    padding: "15px",
-    borderRadius: "5px",
-    textAlign: "center",
+    padding: "20px",
+    borderRadius: "8px",
+    boxShadow: "0 1px 2px rgba(0,0,0,0.1)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  profileCompleteText: {
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
+  },
+  profileCompleteTitle: {
+    fontSize: "16px",
+    fontWeight: "600",
+    color: "#000000",
+    margin: "0",
+  },
+  profileCompleteDescription: {
+    fontSize: "14px",
+    color: "#666666",
+    margin: "0",
   },
   completeButton: {
-    padding: "10px 15px",
+    padding: "8px 16px",
     backgroundColor: "#006d77",
     color: "#ffffff",
     border: "none",
-    borderRadius: "5px",
+    borderRadius: "4px",
     cursor: "pointer",
+    fontSize: "14px",
+    fontWeight: "500",
+    transition: "background-color 0.2s ease",
+    "&:hover": {
+      backgroundColor: "#005a61",
+    },
   },
-  
-  postImage: {
-    height: "200px",
-    backgroundColor: "#ddd",
-    marginTop: "10px",
-    textAlign: "center",
-    lineHeight: "200px",
+  postItem: {
+    marginBottom: '20px',
+    backgroundColor: 'white',
+    borderRadius: '8px',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
+    overflow: 'hidden',
   },
-  postActions: {
-    marginTop: "10px",
-    display: "flex",
-    gap: "10px",
+  postHeader: {
+    backgroundColor: '#80b6bb',
+    display: 'flex',
+    alignItems: 'center',
+    padding: '12px 16px',
+    borderBottom: '1px solid rgba(0,0,0,0.1)',
   },
-  actionButton: {
-    border: "none",
-    backgroundColor: "transparent",
-    cursor: "pointer",
+  postHeaderUserInfo: {
+    display: 'flex',
+    alignItems: 'center',
   },
-  postMedia: {
-    width: "100%",
-    marginTop: "10px",
+  postHeaderAvatar: {
+    width: '32px',
+    height: '32px',
+    borderRadius: '50%',
+    marginRight: '12px',
+    objectFit: 'cover',
+    border: '1px solid rgba(255,255,255,0.2)',
   },
-  category: {
-    marginTop: "10px",
-    fontSize: "12px",
-    color: "#666",
+  postHeaderUserDetails: {
+    display: 'flex',
+    flexDirection: 'column',
+  },
+  postHeaderUsername: {
+    color: '#000000',
+    fontWeight: '600',
+    fontSize: '14px',
+    cursor: 'pointer',
+    marginBottom: '2px',
+  },
+  postHeaderTime: {
+    color: '#000000',
+    fontSize: '12px',
+    opacity: 0.8,
+  },
+  postFeed: {
+    marginBottom: '20px',
+  },
+  postContent: {
+    width: '100%',
+    display: 'block',
   },
   rightSidebar: {
     width: "220px",
@@ -728,25 +827,6 @@ const styles = {
     width: "90%",
     zIndex: 2,
   },
-  postHeader: {
-    display: 'flex',
-    alignItems: 'center',
-    padding: '10px',
-    gap: '10px'
-  },
-  userAvatar: {
-    width: '32px',
-    height: '32px',
-    borderRadius: '50%',
-    objectFit: 'cover'
-  },
-  userName: {
-    fontWeight: 'bold',
-    cursor: 'pointer',
-    '&:hover': {
-      textDecoration: 'underline'
-    }
-  }
 };
 
 export default HomePage;

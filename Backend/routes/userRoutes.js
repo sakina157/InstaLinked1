@@ -1,11 +1,25 @@
 const express = require("express");
-const { updateUsername, followUser, unfollowUser, getUserProfile, getUser, getFollowers, getFollowing, logout, deleteAccount } = require("../controllers/userController");
+const { 
+    updateUsername, 
+    followUser, 
+    unfollowUser, 
+    getUserProfile, 
+    getUser, 
+    getFollowers, 
+    getFollowing, 
+    logout, 
+    deleteAccount,
+    getSuggestions 
+} = require("../controllers/userController");
 const User = require("../models/user");
 
 const router = express.Router();
 
 // User profile routes
 router.get("/profile/:email", getUserProfile);
+
+// Get user suggestions
+router.get("/suggestions", getSuggestions);
 
 // Get user by email
 router.get("/email/:email", async (req, res) => {

@@ -304,6 +304,50 @@ const deleteAccount = async (req, res) => {
     }
 };
 
+// Get user suggestions (users that the current user doesn't follow)
+const getSuggestions = async (req, res) => {
+    try {
+        const { userId } = req.query;
+        console.log("Getting suggestions for user:", userId);
+
+        if (!userId) {
+            console.log("No userId provided in query");
+            return res.status(400).json({ message: "User ID is required" });
+        }
+
+        // Get current user
+        const currentUser = await User.findById(userId);
+        if (!currentUser) {
+            console.log("User not found:", userId);
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        console.log("Found current user:", currentUser.email);
+        console.log("Current user following:", currentUser.following);
+
+        // Get users that the current user is not following
+        const suggestions = await User.find({
+            _id: { 
+                $ne: userId, // Exclude current user
+                $nin: currentUser.following || [] // Exclude users being followed
+            }
+        })
+        .select('username email profileImage jobTitle company')
+        .sort({ createdAt: -1 }) // Show newest users first
+        .limit(4); // Limit to 4 suggestions
+
+        console.log("Found suggestions:", suggestions.length);
+        res.status(200).json(suggestions);
+    } catch (error) {
+        console.error("Error in getSuggestions:", error);
+        res.status(500).json({ 
+            message: "Error getting suggestions", 
+            error: error.message,
+            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        });
+    }
+};
+
 module.exports = { 
     updateUsername, 
     followUser, 
@@ -313,7 +357,8 @@ module.exports = {
     getFollowers, 
     getFollowing,
     logout,
-    deleteAccount
+    deleteAccount,
+    getSuggestions
 };
 
 

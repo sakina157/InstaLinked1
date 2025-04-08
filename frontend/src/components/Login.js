@@ -5,6 +5,7 @@ import styled from "styled-components";
 import { auth } from "../firebaseConfig"; 
 import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import Footer from "./Footer";
+import bookshelves from '../images/bookshelves-amico.png';
 
 const Login = () => {
   const [emailOrPhone, setEmail] = useState("");
@@ -96,7 +97,9 @@ const Login = () => {
   return (
     <PageWrapper>
       <Main>
-        <Placeholder />
+        <ImageContainer>
+          <IllustrationImage src={bookshelves} alt="Bookshelves Illustration" />
+        </ImageContainer>
         <FormWrapper>
           {errorMessage && <ErrorMessage>{errorMessage}</ErrorMessage>}
           <Title>Login</Title>
@@ -161,13 +164,21 @@ const Main = styled.main`
   align-items: center;
   flex-grow: 1;
   padding: 50px;
+  gap: 40px;
 `;
 
-const Placeholder = styled.div`
+const ImageContainer = styled.div`
   width: 500px;
-  height: 300px;
-  background: #e0e0e0;
-  border-radius: 10px;
+  height: 500px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+`;
+
+const IllustrationImage = styled.img`
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 `;
 
 const FormWrapper = styled.div`
