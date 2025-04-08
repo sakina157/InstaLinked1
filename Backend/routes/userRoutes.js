@@ -1,11 +1,30 @@
 const express = require("express");
-const { updateUsername, followUser, unfollowUser, getUserProfile, getUser, getFollowers, getFollowing } = require("../controllers/userController");
+const { updateUsername, followUser, unfollowUser, getUserProfile, getUser, getFollowers, getFollowing, logout, deleteAccount } = require("../controllers/userController");
 const User = require("../models/user");
 
 const router = express.Router();
 
 // User profile routes
 router.get("/profile/:email", getUserProfile);
+
+// Get user by email
+router.get("/email/:email", async (req, res) => {
+    try {
+        const { email } = req.params;
+        const user = await User.findOne({ email });
+        
+        if (!user) {
+            return res.status(404).json({ error: "User not found" });
+        }
+
+        res.json(user);
+    } catch (error) {
+        console.error("Error fetching user by email:", error);
+        res.status(500).json({ error: "Internal Server Error" });
+    }
+});
+
+// Get user by ID
 router.get("/:userId", getUser);
 
 // Follow/Unfollow routes
@@ -34,5 +53,11 @@ router.get("/firebase/:firebaseUID", async (req, res) => {
         res.status(500).json({ error: "Internal Server Error" });
     }
 });
+
+// Logout route
+router.post("/logout", logout);
+
+// Delete account route
+router.delete("/delete", deleteAccount);
 
 module.exports = router;

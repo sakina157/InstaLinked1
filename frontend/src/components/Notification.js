@@ -157,7 +157,6 @@ const Notification = () => {
         if (notification.type === 'follow' && notification.sender?._id) {
             navigate(`/profile/${notification.sender._id}`);
         } else if ((notification.type === 'like' || notification.type === 'comment') && notification.postId) {
-            // Fetch the full post data before showing popup
             try {
                 const response = await axios.get(`http://localhost:5500/api/posts/${notification.postId}`);
                 if (response.data) {
@@ -167,7 +166,8 @@ const Notification = () => {
                             ...response.data.user,
                             profileImage: response.data.user?.profileImage || "/default-avatar.png",
                             username: response.data.user?.username || "User"
-                        }
+                        },
+                        url: response.data.url || response.data.image || response.data.imageUrl // Ensure we get the image URL
                     });
                 }
             } catch (error) {
@@ -218,19 +218,75 @@ const Notification = () => {
     // Get filtered notifications
     const filteredNotifications = getFilteredNotifications(notifications);
 
-    return (
-        <div style={styles.container}>
-            <div style={styles.header}>
-                    <h3 style={styles.headerTitle}>Notifications</h3>
+    // Update the notification item rendering to include post preview
+    const renderNotificationItem = (notification) => (
+        <div key={notification._id} style={styles.notificationItem}>
+            <div 
+                style={styles.notificationContent}
+                onClick={() => handleNotificationClick(notification)}
+            >
+                <img 
+                    src={notification.sender?.profileImage || "/default-avatar.png"} 
+                    alt="" 
+                    style={styles.avatar}
+                />
+                <div style={styles.notificationText}>
+                    <span style={styles.username}>
+                        {notification.sender?.username || "Unknown User"}
+                    </span>
+                    <span>{notification.content}</span>
+                    <span style={styles.time}>
+                        {new Date(notification.createdAt).toLocaleTimeString()}
+                    </span>
+                </div>
+                {(notification.type === 'like' || notification.type === 'comment') && notification.postImage && (
+                    <div style={styles.postPreviewContainer}>
+                        <img 
+                            src={notification.postImage} 
+                            alt="Post preview" 
+                            style={styles.postPreview}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                handleNotificationClick(notification);
+                            }}
+                        />
+                    </div>
+                )}
+            </div>
+            <div style={styles.actions}>
+                {notification.type === 'follow' && !notification.isFollowingBack && notification.sender && (
                     <button 
-                    style={styles.closeButton}
-                    onClick={handleClose}
+                        style={styles.followButton}
+                        onClick={() => handleFollowBack(notification.sender._id)}
+                    >
+                        Follow Back
+                    </button>
+                )}
+                <button 
+                    style={styles.deleteButton}
+                    onClick={() => handleDeleteNotification(notification._id)}
                 >
                     <FaTimes />
                 </button>
-                    </div>
-                    <div style={styles.toolbox}>
+            </div>
+        </div>
+    );
+
+    return (
+        <div style={styles.container}>
+            <div style={styles.header}>
+                <div style={styles.headerContent}>
+                    <h3 style={styles.headerTitle}>Notifications</h3>
                     <button 
+                        style={styles.closeButton}
+                        onClick={handleClose}
+                    >
+                        <FaTimes />
+                    </button>
+                </div>
+            </div>
+            <div style={styles.toolbox}>
+                <button 
                     style={activeFilter === 'All' ? styles.activeToolboxButton : styles.toolboxButton}
                     onClick={() => handleFilterClick('All')}
                 >
@@ -260,146 +316,37 @@ const Notification = () => {
                 >
                     Follows
                 </button>
-                </div>
-                
-                    {loading ? (
-                        <div style={styles.loading}>Loading notifications...</div>
-                    ) : filteredNotifications.length === 0 ? (
-                        <div style={styles.empty}>No notifications yet</div>
-                    ) : (
-                        <div style={styles.notificationsContainer}>
-                    {getNotificationsByDate(filteredNotifications, 0).length > 0 && (
-    <div style={styles.section}>
-        <h4 style={styles.sectionTitle}>Today</h4>
-        {getNotificationsByDate(filteredNotifications, 0).map(notification => (
-            <div key={notification._id} style={styles.notificationItem}>
-                <div 
-                    style={styles.notificationContent}
-                    onClick={() => handleNotificationClick(notification)}
-                >
-                    <img 
-                        src={notification.sender?.profileImage || "/default-avatar.png"} 
-                        alt="" 
-                        style={styles.avatar}
-                    />
-                    <div style={styles.notificationText}>
-                        <span style={styles.username}>{notification.sender?.username || "Unknown User"}</span>
-                        <span>{notification.content}</span>
-                        <span style={styles.time}>
-                            {new Date(notification.createdAt).toLocaleTimeString()}
-                        </span>
-                    </div>
-                    {(notification.type === 'like' || notification.type === 'comment') && notification.postImage && (
-                        <img 
-                            src={notification.postImage} 
-                            alt="Post preview" 
-                            style={styles.postPreview}
-                        />
-                    )}
-                </div>
-                <div style={styles.actions}>
-                    {notification.type === 'follow' && !notification.isFollowingBack && notification.sender && (
-                        <button 
-                            style={styles.followButton}
-                            onClick={() => handleFollowBack(notification.sender._id)}
-                        >
-                            Follow Back
-                        </button>
-                    )}
-                    <button 
-                        style={styles.deleteButton}
-                        onClick={() => handleDeleteNotification(notification._id)}
-                    >
-                        <FaTimes />
-                    </button>
-                </div>
             </div>
-        ))}
-    </div>
-)}
+            
+            {loading ? (
+                <div style={styles.loading}>Loading notifications...</div>
+            ) : filteredNotifications.length === 0 ? (
+                <div style={styles.empty}>No notifications yet</div>
+            ) : (
+                <div style={styles.notificationsContainer}>
+                    {getNotificationsByDate(filteredNotifications, 0).length > 0 && (
+                        <div style={styles.section}>
+                            <h4 style={styles.sectionTitle}>Today</h4>
+                            {getNotificationsByDate(filteredNotifications, 0).map(notification => 
+                                renderNotificationItem(notification)
+                            )}
+                        </div>
+                    )}
                     {getNotificationsByDate(filteredNotifications, 1).length > 0 && (
                         <div style={styles.section}>
                             <h4 style={styles.sectionTitle}>Yesterday</h4>
-                            {getNotificationsByDate(filteredNotifications, 1).map(notification => (
-                                <div key={notification._id} style={styles.notificationItem}>
-                                    <div 
-                                        style={styles.notificationContent}
-                                        onClick={() => handleNotificationClick(notification)}
-                                    >
-                                        <img 
-                                            src={notification.sender && notification.sender.profileImage ? notification.sender.profileImage : "/default-avatar.png"} 
-                                            alt="" 
-                                            style={styles.avatar}
-                                        />
-                                        <div style={styles.notificationText}>
-                                            <span style={styles.username}>{notification.sender ? notification.sender.username : "Unknown User"}</span>
-                                            <span>{notification.content}</span>
-                                            <span style={styles.time}>
-                                                {new Date(notification.createdAt).toLocaleTimeString()}
-                                            </span>
-                                        </div>
-                                    </div>
-                                    <div style={styles.actions}>
-                                        {notification.type === 'follow' && !notification.isFollowingBack && notification.sender && (
-                                            <button 
-                                                style={styles.followButton}
-                                                onClick={() => handleFollowBack(notification.sender._id)}
-                                            >
-                                                Follow Back
-                                            </button>
-                                        )}
-                                        <button 
-                                            style={styles.deleteButton}
-                                            onClick={() => handleDeleteNotification(notification._id)}
-                                        >
-                                            <FaTimes />
-                                        </button>
-                                    </div>
-                                </div>
-                            ))}
+                            {getNotificationsByDate(filteredNotifications, 1).map(notification => 
+                                renderNotificationItem(notification)
+                            )}
                         </div>
                     )}
 
                     {getPreviousNotifications(filteredNotifications).length > 0 && (
                         <div style={styles.section}>
                             <h4 style={styles.sectionTitle}>Previous</h4>
-                            {getPreviousNotifications(filteredNotifications).map(notification => (
-                                <div key={notification._id} style={styles.notificationItem}>
-                                    <div 
-                                        style={styles.notificationContent}
-                                        onClick={() => handleNotificationClick(notification)}
-                                    >
-                                        <img 
-                                            src={notification.sender && notification.sender.profileImage ? notification.sender.profileImage : "/default-avatar.png"} 
-                                            alt="" 
-                                            style={styles.avatar}
-                                        />
-                                        <div style={styles.notificationText}>
-                                            <span style={styles.username}>{notification.sender ? notification.sender.username : "Unknown User"}</span>
-                                            <span>{notification.content}</span>
-                                            <span style={styles.time}>
-                                                {new Date(notification.createdAt).toLocaleDateString()}
-                                            </span>
-                                        </div>
-                                    </div>
-                                    <div style={styles.actions}>
-                                        {notification.type === 'follow' && !notification.isFollowingBack && notification.sender && (
-                                            <button 
-                                                style={styles.followButton}
-                                                onClick={() => handleFollowBack(notification.sender._id)}
-                                            >
-                                                Follow Back
-                                            </button>
-                                        )}
-                                        <button 
-                                            style={styles.deleteButton}
-                                            onClick={() => handleDeleteNotification(notification._id)}
-                                        >
-                                            <FaTimes />
-                                        </button>
-                                    </div>
-                                </div>
-                            ))}
+                            {getPreviousNotifications(filteredNotifications).map(notification => 
+                                renderNotificationItem(notification)
+                            )}
                         </div>
                     )}
                 </div>
@@ -429,9 +376,13 @@ const styles = {
         backgroundColor: '#006d77',
         color: '#ffffff',
         padding: '16px',
-        alignItems: 'center',
         marginBottom: '20px',
         borderRadius: '8px 8px 0 0',
+    },
+    headerContent: {
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
     },
     headerTitle: {
         margin: 0,
@@ -440,8 +391,8 @@ const styles = {
         background: 'none',
         border: 'none',
         cursor: 'pointer',
-        color: '#ffffff', 
-        fontSize: '20px', // Adjust size as needed
+        color: '#ffffff',
+        fontSize: '20px',
         padding: '0',
         display: 'flex',
         alignItems: 'center',
@@ -490,6 +441,7 @@ const styles = {
         alignItems: 'center',
         flex: 1,
         cursor: 'pointer',
+        gap: '12px',
     },
     section: {
         marginBottom: '20px',
@@ -548,12 +500,16 @@ const styles = {
         textAlign: 'center',
         color: '#8e8e8e'
     },
+    postPreviewContainer: {
+        marginLeft: 'auto',
+        display: 'flex',
+        alignItems: 'center',
+    },
     postPreview: {
         width: '44px',
         height: '44px',
         objectFit: 'cover',
         borderRadius: '4px',
-        marginLeft: '12px'
     }
 };
 

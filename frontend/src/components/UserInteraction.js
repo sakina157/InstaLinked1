@@ -21,7 +21,6 @@ const CommentSection = ({ currentpost, setCurrentPost }) => {
 
   const handleLike = async () => {
     try {
-      // Add debug logging
       console.log("Current post data:", currentpost);
       console.log("Current user data:", currentuser);
 
@@ -40,28 +39,46 @@ const CommentSection = ({ currentpost, setCurrentPost }) => {
         // Only create notification when liking (not unliking)
         if (!liked && currentpost.user_email !== user.email) {
           try {
-            // Get the post owner's ID from the populated user object
             const postOwnerId = currentpost.user?._id;
+            
             if (!postOwnerId) {
-              console.error("Post owner ID not found in:", currentpost);
-              return;
+              console.log("Post owner ID not found in user object, fetching from server");
+              try {
+                const postResponse = await axios.get(`http://localhost:5500/api/posts/${currentpost._id}`);
+                if (postResponse.data && postResponse.data.user_email) {
+                  const userResponse = await axios.get(`http://localhost:5500/api/users/email/${postResponse.data.user_email}`);
+                  if (userResponse.data && userResponse.data._id) {
+                    const ownerId = userResponse.data._id;
+                    
+                    // Ensure we're sending the correct post image URL
+                    const postImage = currentpost.url || currentpost.image || currentpost.imageUrl;
+                    
+                    await axios.post('http://localhost:5500/api/notifications', {
+                      recipientId: ownerId,
+                      senderId: currentuser._id,
+                      type: 'like',
+                      content: `${currentuser.username} liked your post`,
+                      postId: currentpost._id,
+                      postImage: postImage
+                    });
+                  }
+                }
+              } catch (fetchError) {
+                console.error("Error fetching post or user data:", fetchError);
+              }
+            } else {
+              // Ensure we're sending the correct post image URL
+              const postImage = currentpost.url || currentpost.image || currentpost.imageUrl;
+              
+              await axios.post('http://localhost:5500/api/notifications', {
+                recipientId: postOwnerId,
+                senderId: currentuser._id,
+                type: 'like',
+                content: `${currentuser.username} liked your post`,
+                postId: currentpost._id,
+                postImage: postImage
+              });
             }
-
-            console.log("Creating like notification with data:", {
-              recipientId: postOwnerId,
-              senderId: currentuser._id,
-              postId: currentpost._id,
-              postImage: currentpost.url
-            });
-
-            await axios.post('http://localhost:5500/api/notifications', {
-              recipientId: postOwnerId,
-              senderId: currentuser._id,
-              type: 'like',
-              content: `${currentuser.username} liked your post`,
-              postId: currentpost._id,
-              postImage: currentpost.url
-            });
           } catch (error) {
             console.error("Error creating like notification:", error.response?.data || error);
           }
@@ -96,15 +113,16 @@ const CommentSection = ({ currentpost, setCurrentPost }) => {
         }));
         setCommentText("");
 
-        // Create notification for comment if not commenting on own post
         if (currentpost.user_email !== user.email) {
           try {
-            // Get the post owner's ID from the post data
             const postOwnerId = currentpost.user?._id;
             if (!postOwnerId) {
               console.error("Post owner ID not found");
               return;
             }
+
+            // Ensure we're sending the correct post image URL
+            const postImage = currentpost.url || currentpost.image || currentpost.imageUrl;
 
             await axios.post('http://localhost:5500/api/notifications', {
               recipientId: postOwnerId,
@@ -112,7 +130,7 @@ const CommentSection = ({ currentpost, setCurrentPost }) => {
               type: 'comment',
               content: `${currentuser.username} commented on your post: "${commentText.trim().substring(0, 50)}${commentText.length > 50 ? '...' : ''}"`,
               postId: currentpost._id,
-              postImage: currentpost.url
+              postImage: postImage
             });
           } catch (error) {
             console.error("Error creating comment notification:", error);

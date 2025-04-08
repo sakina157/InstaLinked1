@@ -265,7 +265,56 @@ const getFollowing = async (req, res) => {
     }
 };
 
-module.exports = { updateUsername, followUser, unfollowUser, getUserProfile, getUser, getFollowers, getFollowing };
+const logout = async (req, res) => {
+    try {
+        // Clear any session cookies
+        res.clearCookie('token');
+        res.status(200).json({ message: 'Logged out successfully' });
+    } catch (error) {
+        console.error('Error during logout:', error);
+        res.status(500).json({ error: 'Failed to logout' });
+    }
+};
+
+const deleteAccount = async (req, res) => {
+    try {
+        const { userId } = req.body;
+
+        // Delete user's notifications
+        await Notification.deleteMany({
+            $or: [
+                { recipient: userId },
+                { sender: userId }
+            ]
+        });
+
+        // Delete the user
+        const deletedUser = await User.findByIdAndDelete(userId);
+        
+        if (!deletedUser) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        // Clear session cookie
+        res.clearCookie('token');
+        res.status(200).json({ message: 'Account deleted successfully' });
+    } catch (error) {
+        console.error('Error deleting account:', error);
+        res.status(500).json({ error: 'Failed to delete account' });
+    }
+};
+
+module.exports = { 
+    updateUsername, 
+    followUser, 
+    unfollowUser, 
+    getUserProfile, 
+    getUser, 
+    getFollowers, 
+    getFollowing,
+    logout,
+    deleteAccount
+};
 
 
 

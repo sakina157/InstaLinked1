@@ -200,6 +200,72 @@ const HomePage = () => {
                 : p
             )
           );
+          
+          // Only create notification when liking (not unliking)
+          if (!isLiked && post.user_email !== storedUser.email) {
+            try {
+              // Get the post owner's ID from the post data
+              const postOwnerId = post.user?._id;
+              
+              // If post owner ID is not available in the user object, fetch it from the server
+              if (!postOwnerId) {
+                console.log("Post owner ID not found in user object, fetching from server");
+                try {
+                  // Fetch the post to get the user_email
+                  const postResponse = await axios.get(`http://localhost:5500/api/posts/${post._id}`);
+                  if (postResponse.data && postResponse.data.user_email) {
+                    // Fetch the user to get their ID
+                    const userResponse = await axios.get(`http://localhost:5500/api/users/email/${postResponse.data.user_email}`);
+                    if (userResponse.data && userResponse.data._id) {
+                      // Now we have the post owner's ID
+                      const ownerId = userResponse.data._id;
+                      
+                      console.log("Creating like notification with data:", {
+                        recipientId: ownerId,
+                        senderId: storedUser._id,
+                        postId: post._id,
+                        postImage: post.url
+                      });
+
+                      await axios.post('http://localhost:5500/api/notifications', {
+                        recipientId: ownerId,
+                        senderId: storedUser._id,
+                        type: 'like',
+                        content: `${storedUser.username} liked your post`,
+                        postId: post._id,
+                        postImage: post.url
+                      });
+                    } else {
+                      console.error("Could not find user with email:", postResponse.data.user_email);
+                    }
+                  } else {
+                    console.error("Post data does not contain user_email:", postResponse.data);
+                  }
+                } catch (fetchError) {
+                  console.error("Error fetching post or user data:", fetchError);
+                }
+              } else {
+                // Use the post owner ID from the user object
+                console.log("Creating like notification with data:", {
+                  recipientId: postOwnerId,
+                  senderId: storedUser._id,
+                  postId: post._id,
+                  postImage: post.url
+                });
+
+                await axios.post('http://localhost:5500/api/notifications', {
+                  recipientId: postOwnerId,
+                  senderId: storedUser._id,
+                  type: 'like',
+                  content: `${storedUser.username} liked your post`,
+                  postId: post._id,
+                  postImage: post.url
+                });
+              }
+            } catch (error) {
+              console.error("Error creating like notification:", error.response?.data || error);
+            }
+          }
         }
       } catch (error) {
         console.error("Error liking post:", error);

@@ -4,6 +4,7 @@ const jwt = require("jsonwebtoken");
 const sendEmail = require("../utils/sendEmail");
 const speakeasy = require("speakeasy");
 const admin = require("../firebase");
+const Notification = require("../models/notification");
 require("dotenv").config();
 
 const loginWithGoogle = async (req, res) => {
@@ -354,7 +355,75 @@ const getUserByEmail = async (req, res) => {
   }
 };
 
+const logout = async (req, res) => {
+    try {
+        // Clear JWT token cookie
+        res.clearCookie('token');
+        res.status(200).json({ message: 'Logged out successfully' });
+    } catch (error) {
+        console.error('Error during logout:', error);
+        res.status(500).json({ error: 'Failed to logout' });
+    }
+};
 
-module.exports = { register, verifyOTP, checkUsernameAvailability, login, getUser, getUserByEmail, loginWithGoogle, googleSignup }; 
+const deleteAccount = async (req, res) => {
+    try {
+        const { userId } = req.body;
+
+        // Delete user's notifications
+        await Notification.deleteMany({
+            $or: [
+                { recipient: userId },
+                { sender: userId }
+            ]
+        });
+
+        // Delete the user
+        const deletedUser = await User.findByIdAndDelete(userId);
+        
+        if (!deletedUser) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        // Clear JWT token cookie
+        res.clearCookie('token');
+        res.status(200).json({ message: 'Account deleted successfully' });
+    } catch (error) {
+        console.error('Error deleting account:', error);
+        res.status(500).json({ error: 'Failed to delete account' });
+    }
+};
+
+const changePassword = async (req, res) => {
+    try {
+        const { userId, currentPassword, newPassword } = req.body;
+
+        // Find user
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        // Verify current password
+        const isMatch = await bcrypt.compare(currentPassword, user.password);
+        if (!isMatch) {
+            return res.status(400).json({ message: 'Current password is incorrect' });
+        }
+
+        // Hash new password
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+        // Update password
+        user.password = hashedPassword;
+        await user.save();
+
+        res.status(200).json({ message: 'Password changed successfully' });
+    } catch (error) {
+        console.error('Error changing password:', error);
+        res.status(500).json({ message: 'Failed to change password' });
+    }
+};
+
+module.exports = { register, verifyOTP, checkUsernameAvailability, login, getUser, getUserByEmail, loginWithGoogle, googleSignup, logout, deleteAccount, changePassword }; 
 
 
