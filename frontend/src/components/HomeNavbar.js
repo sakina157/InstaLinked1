@@ -113,7 +113,7 @@ const HomeNavbar = () => {
                     {/* Right Section */}
                     <div style={styles.rightSection}>
                         <Link to="/home" style={styles.navIcon}><FaHome /></Link>
-                        <Link to="/trending" style={styles.navIcon}><FaCompass /></Link>
+                        <Link to="/explore-page" style={styles.navIcon}><FaCompass /></Link>
                         <Link to="/create-post" style={styles.navIcon}><FaPlusCircle /></Link>
                         <Link to="/notifications" style={styles.navIcon}>
                             <FaBell />

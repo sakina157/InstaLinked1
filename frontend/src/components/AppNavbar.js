@@ -19,12 +19,9 @@ const Navbar = ({ userProfile }) => {
         <NavIcon><NavLink href="/home"><FaHome /></NavLink></NavIcon>
         <NavIcon><NavLink href="/explore-page"><FaWpexplorer /></NavLink></NavIcon> 
         <NavIcon><NavLink href="/create-post"><FaPlusCircle /></NavLink></NavIcon>
-        <NavIcon>
-          <BellIcon>
-            <FaBell />
-            { <NotificationBadge>12</NotificationBadge> }
-          </BellIcon>
-        </NavIcon>
+        <NavIcon><NavLink href="/notifications"><FaBell /></NavLink></NavIcon>
+        
+        
         <NavIcon><FaEnvelope /></NavIcon>
         <NavLink href="/profile"><ProfileImage src={user?.profileImage || default_user}  alt="User Profile" /></NavLink>
         <NavLink href="/settings"><FaCog size={25} /></NavLink>
@@ -84,21 +81,6 @@ const NavIcon = styled.div`
   font-size: 24px;
   cursor: pointer;
   position: relative;
-`;
-
-const BellIcon = styled.div`
-  position: relative;
-`;
-
-const NotificationBadge = styled.span`
-  position: absolute;
-  top: -5px;
-  right: -8px;
-  background-color: red;
-  color: white;
-  font-size: 12px;
-  border-radius: 50%;
-  padding: 2px 6px;
 `;
 
 const ProfileImage = styled.img`
